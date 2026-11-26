@@ -4,9 +4,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SmartStaff.Application.Authentication;
 using SmartStaff.Application.Health;
+using SmartStaff.Application.Staffing;
 using SmartStaff.Infrastructure.Health;
 using SmartStaff.Infrastructure.Identity;
 using SmartStaff.Infrastructure.Persistence;
+using SmartStaff.Infrastructure.Staffing;
 
 namespace SmartStaff.Infrastructure;
 
@@ -48,6 +50,8 @@ public static class DependencyInjection
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IProfileService, AuthService>();
         services.AddScoped<IUserAdminService, AuthService>();
+        services.AddScoped<IFacilityService, FacilityService>();
+        services.AddScoped<IRequisitionService, RequisitionService>();
         if (string.Equals(configuration["PASSWORD_RESET_DEV_SINK"], "true", StringComparison.OrdinalIgnoreCase))
         {
             services.AddScoped<IPasswordResetNotifier, DevelopmentPasswordResetNotifier>();

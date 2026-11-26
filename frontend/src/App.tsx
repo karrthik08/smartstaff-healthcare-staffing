@@ -5,10 +5,13 @@ import ProtectedRoute from './auth/ProtectedRoute'
 import AppShell from './layout/AppShell'
 import AdminDashboardPage from './pages/AdminDashboardPage'
 import DashboardPage from './pages/DashboardPage'
+import FacilitiesPage from './pages/FacilitiesPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import LoginPage from './pages/LoginPage'
 import ProfilePage from './pages/ProfilePage'
 import RegisterPage from './pages/RegisterPage'
+import RequisitionDetailPage from './pages/RequisitionDetailPage'
+import RequisitionsPage from './pages/RequisitionsPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import RoleDashboardPage from './pages/RoleDashboardPage'
 import UnauthorizedPage from './pages/UnauthorizedPage'
@@ -34,6 +37,9 @@ export default function App() {
             <Route path="/dashboard/clinician" element={<ProtectedRoute roles={['Administrator', 'Clinician']}><RoleDashboardPage workspace="clinician" /></ProtectedRoute>} />
             <Route path="/dashboard/facility" element={<ProtectedRoute roles={['Administrator', 'FacilityManager', 'HospitalAdministrator', 'Hospital Administrator']}><RoleDashboardPage workspace="facility" /></ProtectedRoute>} />
             <Route path="/dashboard/hospital" element={<Navigate to="/dashboard/facility" replace />} />
+            <Route path="/facilities" element={<ProtectedRoute roles={['Administrator', 'FacilityManager', 'HospitalAdministrator', 'Hospital Administrator', 'Recruiter', 'StaffingCoordinator', 'Staffing Coordinator']}><FacilitiesPage /></ProtectedRoute>} />
+            <Route path="/requisitions" element={<ProtectedRoute><RequisitionsPage /></ProtectedRoute>} />
+            <Route path="/requisitions/:id" element={<ProtectedRoute><RequisitionDetailPage /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
           </Route>
         </Routes>

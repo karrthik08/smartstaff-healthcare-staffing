@@ -38,7 +38,7 @@ export default function AppShell() {
           <Toolbar />
           <List>
             {links.map((link) => (
-              <ListItemButton key={link.to} onClick={() => navigate(link.to)}>
+              <ListItemButton key={`${link.to}-${link.label}`} onClick={() => navigate(link.to)}>
                 <ListItemText primary={link.label} />
               </ListItemButton>
             ))}

@@ -26,6 +26,9 @@ export const navigation = [
   { to: '/dashboard/recruiter', label: 'Recruiter', roles: recruiterRoles },
   { to: '/dashboard/clinician', label: 'Clinician', roles: clinicianRoles },
   { to: '/dashboard/facility', label: 'Facility', roles: facilityRoles },
+  { to: '/facilities', label: 'Facilities', roles: facilityRoles },
+  { to: '/requisitions', label: 'Requisitions', roles: [...new Set([...recruiterRoles, ...facilityRoles])] },
+  { to: '/requisitions', label: 'Jobs', roles: ['Clinician'] },
   { to: '/profile', label: 'Profile', roles: anyRole },
   { to: '/health', label: 'System status', roles: anyRole },
 ]
