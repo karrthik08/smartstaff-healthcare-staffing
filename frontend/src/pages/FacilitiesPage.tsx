@@ -2,7 +2,7 @@ import { Alert, Button, MenuItem, Stack, TextField, Typography } from '@mui/mate
 import { useEffect, useState, type FormEvent } from 'react'
 import { assignFacilityMember, createFacility, createLocation, listFacilities, listLocations, type Facility, type FacilityInput, type FacilityLocation } from '../api/staffing'
 import { apiErrorMessage } from '../api/client'
-import { useAuth } from '../auth/AuthContext'
+import { useAuth } from '../auth/useAuth'
 
 const emptyFacility: FacilityInput = {
   name: '',

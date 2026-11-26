@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   login as loginRequest,
@@ -6,21 +6,10 @@ import {
   registerAccount,
   restoreSession,
   type AuthUser,
-  type RegisterInput,
 } from '../api/auth'
 import { apiErrorMessage } from '../api/client'
+import { AuthContext, type AuthContextValue } from './auth-state'
 import { setAccessToken } from './session'
-
-type AuthContextValue = {
-  user: AuthUser | null
-  loading: boolean
-  sessionNotice: string | null
-  login: (email: string, password: string) => Promise<AuthUser>
-  register: (input: RegisterInput) => Promise<void>
-  logout: () => Promise<void>
-}
-
-const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
@@ -88,12 +77,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }), [loading, sessionNotice, user])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
-}
-
-export function useAuth() {
-  const value = useContext(AuthContext)
-  if (!value) {
-    throw new Error('useAuth must be used within AuthProvider')
-  }
-  return value
 }

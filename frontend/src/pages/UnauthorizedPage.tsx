@@ -1,6 +1,6 @@
 import { Button, Stack, Typography } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../auth/AuthContext'
+import { useAuth } from '../auth/useAuth'
 import { primaryPath } from '../auth/roles'
 
 export default function UnauthorizedPage() {

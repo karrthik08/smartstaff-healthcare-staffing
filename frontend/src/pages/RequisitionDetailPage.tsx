@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { assignRecruiter, changeRequisitionStatus, getRequisition, type Requisition } from '../api/staffing'
 import { applyToJob } from '../api/recruitment'
 import { apiErrorMessage } from '../api/client'
-import { useAuth } from '../auth/AuthContext'
+import { useAuth } from '../auth/useAuth'
 
 const statuses = ['Draft', 'Open', 'Published', 'OnHold', 'Filled', 'Closed', 'Cancelled']
 

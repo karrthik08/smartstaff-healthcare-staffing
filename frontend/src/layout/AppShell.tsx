@@ -1,7 +1,8 @@
 import LogoutIcon from '@mui/icons-material/Logout'
 import { AppBar, Box, Button, Chip, Drawer, List, ListItemButton, ListItemText, Toolbar, Typography } from '@mui/material'
 import { Outlet, useNavigate } from 'react-router-dom'
-import { useAuth } from '../auth/AuthContext'
+import { useAuth } from '../auth/useAuth'
+import NotificationBell from './NotificationBell'
 import { navigation, roleLabels } from '../auth/roles'
 
 export default function AppShell() {
@@ -28,6 +29,7 @@ export default function AppShell() {
                 {user.firstName} {user.lastName}
               </Typography>
               <Chip label={user.roles.map((role) => roleLabels[role] ?? role).join(', ')} size="small" sx={{ mr: 2, color: 'inherit', borderColor: 'rgba(255,255,255,0.4)' }} variant="outlined" />
+              <NotificationBell />
               <Button color="inherit" startIcon={<LogoutIcon />} onClick={onLogout}>Sign out</Button>
             </>
           )}

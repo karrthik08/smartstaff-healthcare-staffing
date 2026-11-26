@@ -27,9 +27,13 @@ public sealed class OvertimePolicy
 
     public string JurisdictionCode { get; set; } = "";
 
-    public decimal RegularHoursPerDay { get; set; }
+    /// <summary>Null means this jurisdiction has no daily overtime threshold.</summary>
+    public decimal? DailyOvertimeThreshold { get; set; }
 
-    public decimal RegularHoursPerPeriod { get; set; }
+    /// <summary>Regular hours allowed in the fixed seven-day workweek, independent of timesheet dates.</summary>
+    public decimal WeeklyOvertimeThreshold { get; set; } = 40m;
+
+    public DayOfWeek WorkweekStartsOn { get; set; } = DayOfWeek.Sunday;
 
     public bool IsActive { get; set; } = true;
 

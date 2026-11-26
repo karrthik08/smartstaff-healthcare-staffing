@@ -10,7 +10,9 @@ using SmartStaff.Infrastructure.Identity;
 using SmartStaff.Infrastructure.Persistence;
 using SmartStaff.Application.Recruitment;
 using SmartStaff.Application.Scheduling;
+using SmartStaff.Application.Notifications;
 using SmartStaff.Application.Timekeeping;
+using SmartStaff.Infrastructure.Notifications;
 using SmartStaff.Infrastructure.Recruitment;
 using SmartStaff.Infrastructure.Scheduling;
 using SmartStaff.Infrastructure.Timekeeping;
@@ -26,8 +28,10 @@ public static class DependencyInjection
     {
         var database = DatabaseConfigurationReader.Read(configuration);
 
-        services.AddDbContext<ApplicationDbContext>(options =>
-            options.UseNpgsql(NpgsqlConnectionStringFactory.Create(database)));
+        services.AddSingleton<NotificationOutboxInterceptor>();
+        services.AddDbContext<ApplicationDbContext>((provider, options) =>
+            options.UseNpgsql(NpgsqlConnectionStringFactory.Create(database))
+                .AddInterceptors(provider.GetRequiredService<NotificationOutboxInterceptor>()));
 
         services
             .AddIdentityCore<ApplicationUser>(options =>
@@ -63,6 +67,10 @@ public static class DependencyInjection
         services.AddScoped<IPlacementService, PlacementService>();
         services.AddScoped<ISchedulingService, SchedulingService>();
         services.AddScoped<ITimekeepingService, TimekeepingService>();
+        services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<INotificationProcessor, NotificationProcessor>();
+        services.AddScoped<IEmailSender, RecordingEmailSender>();
+        services.AddHostedService<NotificationHostedService>();
         if (string.Equals(configuration["PASSWORD_RESET_DEV_SINK"], "true", StringComparison.OrdinalIgnoreCase))
         {
             services.AddScoped<IPasswordResetNotifier, DevelopmentPasswordResetNotifier>();

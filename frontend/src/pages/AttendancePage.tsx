@@ -2,7 +2,7 @@ import { Alert, Button, Stack, TextField, Typography } from '@mui/material'
 import { useEffect, useState } from 'react'
 import { apiErrorMessage } from '../api/client'
 import { addTimesheetEntry, approveTimesheet, clockIn, clockOut, createTimesheet, listAttendance, listTimesheets, rejectTimesheet, requestAdjustment, submitTimesheet, timesheetHistory, timesheetSummary, type ApprovalHistory, type Attendance, type Timesheet, type TimesheetSummary } from '../api/timekeeping'
-import { useAuth } from '../auth/AuthContext'
+import { useAuth } from '../auth/useAuth'
 
 export default function AttendancePage() {
   const { user } = useAuth()
@@ -89,7 +89,7 @@ export default function AttendancePage() {
       {attendance?.map((record) => (
         <Stack key={record.id} spacing={0.5} sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 2 }}>
           <Typography>{record.clinicianName} · {record.attendanceStatus}</Typography>
-          <Typography>{record.clockInTime}{record.clockOutTime ? ` – ${record.clockOutTime}` : ' · still clocked in'}</Typography>
+          <Typography>{record.clockInLocal}{record.clockOutLocal ? ` – ${record.clockOutLocal}` : ' · still clocked in'} {record.timeZoneId}</Typography>
         </Stack>
       ))}
       {timesheets?.map((sheet) => (

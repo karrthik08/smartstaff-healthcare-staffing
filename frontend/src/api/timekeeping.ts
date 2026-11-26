@@ -6,8 +6,11 @@ export type Attendance = {
   clinicianProfileId: string
   clinicianName: string
   facilityId: string
+  timeZoneId: string
   clockInTime: string
   clockOutTime: string | null
+  clockInLocal: string
+  clockOutLocal: string | null
   attendanceStatus: string
 }
 

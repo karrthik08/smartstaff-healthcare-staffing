@@ -17,7 +17,7 @@ public sealed record AdjustmentRequest(Guid TimesheetEntryId, decimal AdjustedHo
 
 public sealed record ReviewAdjustmentRequest(string Status);
 
-public sealed record OvertimePolicyRequest(string JurisdictionCode, decimal RegularHoursPerDay, decimal RegularHoursPerPeriod);
+public sealed record OvertimePolicyRequest(string JurisdictionCode, decimal? DailyOvertimeThreshold, decimal WeeklyOvertimeThreshold, string WorkweekStartsOn);
 
 public sealed record TimesheetListQuery(Guid? FacilityId, string? Status, int Page, int PageSize);
 
@@ -27,8 +27,11 @@ public sealed record AttendanceDto(
     Guid ClinicianProfileId,
     string ClinicianName,
     Guid FacilityId,
+    string TimeZoneId,
     DateTimeOffset ClockInTime,
     DateTimeOffset? ClockOutTime,
+    string ClockInLocal,
+    string? ClockOutLocal,
     string AttendanceStatus,
     bool Created);
 
@@ -38,6 +41,8 @@ public sealed record TimesheetEntryDto(
     DateOnly WorkDate,
     DateTimeOffset StartTime,
     DateTimeOffset EndTime,
+    string StartLocal,
+    string EndLocal,
     int BreakMinutes,
     decimal RegularHours,
     decimal OvertimeHours,
@@ -90,8 +95,9 @@ public sealed record TimesheetSummaryDto(
 public sealed record OvertimePolicyDto(
     Guid Id,
     string JurisdictionCode,
-    decimal RegularHoursPerDay,
-    decimal RegularHoursPerPeriod,
+    decimal? DailyOvertimeThreshold,
+    decimal WeeklyOvertimeThreshold,
+    string WorkweekStartsOn,
     bool IsActive);
 
 public sealed record TimesheetPageDto(

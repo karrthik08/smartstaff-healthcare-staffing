@@ -20,7 +20,7 @@ jest.mock('../api/timekeeping', () => ({
 
 const roles = { current: ['Clinician'] }
 
-jest.mock('../auth/AuthContext', () => ({
+jest.mock('../auth/useAuth', () => ({
   useAuth: () => ({
     user: { id: 'user-1', email: 'casey@smartstaff.test', firstName: 'Casey', lastName: 'Clinician', roles: roles.current },
     loading: false,

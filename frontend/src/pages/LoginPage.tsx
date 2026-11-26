@@ -1,7 +1,7 @@
 import { Alert, Button, Link as MuiLink, Stack, TextField } from '@mui/material'
 import { useState, type FormEvent } from 'react'
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom'
-import { useAuth } from '../auth/AuthContext'
+import { useAuth } from '../auth/useAuth'
 import { primaryPath } from '../auth/roles'
 import AuthCard from './AuthCard'
 

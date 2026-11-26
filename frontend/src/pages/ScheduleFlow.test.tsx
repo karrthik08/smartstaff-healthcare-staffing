@@ -26,7 +26,7 @@ jest.mock('../api/staffing', () => ({
 
 const roles = { current: ['FacilityManager'] }
 
-jest.mock('../auth/AuthContext', () => ({
+jest.mock('../auth/useAuth', () => ({
   useAuth: () => ({
     user: { id: 'user-1', email: 'frances@smartstaff.test', firstName: 'Frances', lastName: 'Facility', roles: roles.current },
     loading: false,

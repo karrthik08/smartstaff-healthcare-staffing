@@ -47,7 +47,8 @@ public sealed class OvertimePolicyRequestValidator : AbstractValidator<OvertimeP
     public OvertimePolicyRequestValidator()
     {
         RuleFor(request => request.JurisdictionCode).NotEmpty().Length(2, 16);
-        RuleFor(request => request.RegularHoursPerDay).GreaterThan(0).LessThanOrEqualTo(24);
-        RuleFor(request => request.RegularHoursPerPeriod).GreaterThan(0).LessThanOrEqualTo(200);
+        RuleFor(request => request.DailyOvertimeThreshold).GreaterThan(0).LessThanOrEqualTo(24).When(request => request.DailyOvertimeThreshold is not null);
+        RuleFor(request => request.WeeklyOvertimeThreshold).GreaterThan(0).LessThanOrEqualTo(168);
+        RuleFor(request => request.WorkweekStartsOn).NotEmpty().Must(value => Enum.TryParse<DayOfWeek>(value, true, out _)).WithMessage("Choose a day of the week.");
     }
 }

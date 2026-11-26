@@ -86,14 +86,14 @@ public sealed class TimekeepingTests
         Assert.That((await clinicianSession.SendAsync(HttpMethod.Post, $"/api/attendance/{firstAssignment}/clock-in", new { at = "2026-12-16T13:00:00Z" }, bearer: true)).StatusCode, Is.EqualTo(HttpStatusCode.Conflict));
         Assert.That((await clinicianSession.SendAsync(HttpMethod.Post, $"/api/attendance/{secondAssignment}/clock-in", new { at = "2026-12-16T20:00:00Z" }, bearer: true)).StatusCode, Is.EqualTo(HttpStatusCode.Conflict));
         Assert.That((await clinicianSession.SendAsync(HttpMethod.Post, $"/api/attendance/{secondAssignment}/clock-in", new { at = "2026-12-18T13:00:00Z" }, bearer: true)).StatusCode, Is.EqualTo(HttpStatusCode.Created));
-        Assert.That((await clinicianSession.SendAsync(HttpMethod.Post, $"/api/attendance/{secondAssignment}/clock-out", new { at = "2026-12-18T23:00:00Z" }, bearer: true)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That((await clinicianSession.SendAsync(HttpMethod.Post, $"/api/attendance/{secondAssignment}/clock-out", new { at = "2026-12-20T01:00:00Z" }, bearer: true)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         var timesheet = await ReadAsync(await clinicianSession.SendAsync(HttpMethod.Post, "/api/timesheets", new { facilityId, periodStart = "2026-12-14", periodEnd = "2026-12-17" }, bearer: true), HttpStatusCode.Created);
         var timesheetId = timesheet.GetProperty("id").GetGuid();
         Assert.That((await clinicianSession.SendAsync(HttpMethod.Post, $"/api/timesheets/{timesheetId}/entries", Entry(firstAssignment, "2026-12-16T13:00:00Z", "2026-12-16T23:00:00Z", 600), bearer: true)).StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
         var withHours = await ReadAsync(await clinicianSession.SendAsync(HttpMethod.Post, $"/api/timesheets/{timesheetId}/entries", Entry(firstAssignment, "2026-12-16T13:00:00Z", "2026-12-16T23:00:00Z", 0), bearer: true));
-        Assert.That(withHours.GetProperty("totalRegularHours").GetDecimal(), Is.EqualTo(8m));
-        Assert.That(withHours.GetProperty("totalOvertimeHours").GetDecimal(), Is.EqualTo(2m));
+        Assert.That(withHours.GetProperty("totalRegularHours").GetDecimal(), Is.EqualTo(10m));
+        Assert.That(withHours.GetProperty("totalOvertimeHours").GetDecimal(), Is.EqualTo(0m));
         Assert.That((await clinicianSession.SendAsync(HttpMethod.Post, $"/api/timesheets/{timesheetId}/entries", Entry(firstAssignment, "2026-12-16T13:00:00Z", "2026-12-16T23:00:00Z", 0), bearer: true)).StatusCode, Is.EqualTo(HttpStatusCode.Conflict));
         Assert.That((await managerSession.SendAsync(HttpMethod.Post, $"/api/timesheets/{timesheetId}/approve", bearer: true)).StatusCode, Is.EqualTo(HttpStatusCode.Conflict));
         var submitted = await ReadAsync(await clinicianSession.SendAsync(HttpMethod.Post, $"/api/timesheets/{timesheetId}/submit", bearer: true));
@@ -115,12 +115,21 @@ public sealed class TimekeepingTests
         var history = await ReadAsync(await managerSession.SendAsync(HttpMethod.Get, $"/api/timesheets/{timesheetId}/history", bearer: true), HttpStatusCode.OK);
         Assert.That(history.EnumerateArray().Count(item => item.GetProperty("newStatus").GetString() == "Approved"), Is.EqualTo(1));
 
-        Assert.That((await adminSession.SendAsync(HttpMethod.Post, "/api/overtime-policies", new { jurisdictionCode = "TX", regularHoursPerDay = 12, regularHoursPerPeriod = 40 }, bearer: true)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        var corrected = await ReadAsync(await clinicianSession.SendAsync(HttpMethod.Post, "/api/timesheets", new { facilityId, periodStart = "2026-12-18", periodEnd = "2026-12-20" }, bearer: true), HttpStatusCode.Created);
+        var corrected = await ReadAsync(await clinicianSession.SendAsync(HttpMethod.Post, "/api/timesheets", new { facilityId, periodStart = "2026-12-18", periodEnd = "2026-12-21" }, bearer: true), HttpStatusCode.Created);
         var correctedId = corrected.GetProperty("id").GetGuid();
-        var jurisdiction = await ReadAsync(await clinicianSession.SendAsync(HttpMethod.Post, $"/api/timesheets/{correctedId}/entries", Entry(secondAssignment, "2026-12-18T13:00:00Z", "2026-12-18T23:00:00Z", 0), bearer: true));
-        Assert.That(jurisdiction.GetProperty("totalRegularHours").GetDecimal(), Is.EqualTo(10m));
-        Assert.That(jurisdiction.GetProperty("totalOvertimeHours").GetDecimal(), Is.EqualTo(0m));
+        var acrossWeeks = await ReadAsync(await clinicianSession.SendAsync(HttpMethod.Post, $"/api/timesheets/{correctedId}/entries", Entry(secondAssignment, "2026-12-18T13:00:00Z", "2026-12-20T01:00:00Z", 0), bearer: true));
+        Assert.That(acrossWeeks.GetProperty("totalRegularHours").GetDecimal(), Is.EqualTo(30m));
+        Assert.That(acrossWeeks.GetProperty("totalOvertimeHours").GetDecimal(), Is.EqualTo(6m));
+        var preserved = await ReadAsync(await clinicianSession.SendAsync(HttpMethod.Get, $"/api/timesheets/{timesheetId}", bearer: true), HttpStatusCode.OK);
+        Assert.That(preserved.GetProperty("totalRegularHours").GetDecimal(), Is.EqualTo(10m));
+        Assert.That(preserved.GetProperty("totalOvertimeHours").GetDecimal(), Is.EqualTo(0m));
+        Assert.That((await adminSession.SendAsync(HttpMethod.Post, "/api/overtime-policies", new { jurisdictionCode = "TX", dailyOvertimeThreshold = 8, weeklyOvertimeThreshold = 40, workweekStartsOn = "Sunday" }, bearer: true)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var daily = await ReadAsync(await clinicianSession.SendAsync(HttpMethod.Put, $"/api/timesheets/{correctedId}/entries/{acrossWeeks.GetProperty("entries")[0].GetProperty("id").GetGuid()}", Entry(secondAssignment, "2026-12-18T13:00:00Z", "2026-12-18T23:00:00Z", 0), bearer: true));
+        Assert.That(daily.GetProperty("totalRegularHours").GetDecimal(), Is.EqualTo(8m));
+        Assert.That(daily.GetProperty("totalOvertimeHours").GetDecimal(), Is.EqualTo(2m));
+        preserved = await ReadAsync(await clinicianSession.SendAsync(HttpMethod.Get, $"/api/timesheets/{timesheetId}", bearer: true), HttpStatusCode.OK);
+        Assert.That(preserved.GetProperty("totalRegularHours").GetDecimal(), Is.EqualTo(10m));
+        var jurisdiction = daily;
         await ReadAsync(await clinicianSession.SendAsync(HttpMethod.Post, $"/api/timesheets/{correctedId}/submit", bearer: true));
         var rejected = await ReadAsync(await managerSession.SendAsync(HttpMethod.Post, $"/api/timesheets/{correctedId}/reject", new { reason = "Break was missing" }, bearer: true));
         Assert.That(rejected.GetProperty("status").GetString(), Is.EqualTo("Rejected"));
@@ -143,7 +152,7 @@ public sealed class TimekeepingTests
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         Assert.That(await db.AttendanceRecords.CountAsync(item => item.ShiftAssignmentId == firstAssignment && item.AttendanceStatus == AttendanceStatus.Completed), Is.EqualTo(1));
         Assert.That(await db.TimesheetApprovalHistory.CountAsync(item => item.TimesheetId == timesheetId && item.NewStatus == TimesheetStatus.Approved), Is.EqualTo(2));
-        Assert.That((await adminSession.SendAsync(HttpMethod.Post, "/api/overtime-policies", new { jurisdictionCode = "TX", regularHoursPerDay = 8, regularHoursPerPeriod = 40 }, bearer: true)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That((await adminSession.SendAsync(HttpMethod.Post, "/api/overtime-policies", new { jurisdictionCode = "TX", weeklyOvertimeThreshold = 40, workweekStartsOn = "Sunday" }, bearer: true)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
     }
 
     private async Task<Guid> PublishShiftAsync(Session manager, Guid facilityId, Guid locationId, Guid requisitionId, string start, string end)

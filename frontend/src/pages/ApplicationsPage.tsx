@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { Link as RouterLink } from 'react-router-dom'
 import { listApplications, listMyApplications, type JobApplication } from '../api/recruitment'
 import { apiErrorMessage } from '../api/client'
-import { useAuth } from '../auth/AuthContext'
+import { useAuth } from '../auth/useAuth'
 
 const statuses = ['', 'Applied', 'UnderReview', 'Screening', 'SubmittedToFacility', 'Interview', 'Offer', 'Placed', 'Rejected', 'Withdrawn']
 

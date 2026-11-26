@@ -39,7 +39,7 @@ public sealed class CapturingResetNotifier : IPasswordResetNotifier
     }
 }
 
-public sealed class AuthApiFactory : WebApplicationFactory<Program>
+public class AuthApiFactory : WebApplicationFactory<Program>
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using SmartStaff.Domain.Notifications;
 using SmartStaff.Domain.Recruitment;
 using SmartStaff.Domain.Scheduling;
 using SmartStaff.Domain.Staffing;
@@ -67,6 +68,18 @@ public sealed class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<TimesheetApprovalHistory> TimesheetApprovalHistory => Set<TimesheetApprovalHistory>();
 
     public DbSet<TimesheetAdjustment> TimesheetAdjustments => Set<TimesheetAdjustment>();
+
+    public DbSet<Notification> Notifications => Set<Notification>();
+
+    public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
+
+    public DbSet<NotificationDelivery> NotificationDeliveries => Set<NotificationDelivery>();
+
+    public DbSet<NotificationTemplate> NotificationTemplates => Set<NotificationTemplate>();
+
+    public DbSet<NotificationOutbox> NotificationOutbox => Set<NotificationOutbox>();
+
+    public DbSet<EmailDispatch> EmailDispatches => Set<EmailDispatch>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -323,12 +336,13 @@ public sealed class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<OvertimePolicy>(entity =>
         {
             entity.Property(policy => policy.JurisdictionCode).HasMaxLength(16).IsRequired();
-            entity.Property(policy => policy.RegularHoursPerDay).HasPrecision(8, 2);
-            entity.Property(policy => policy.RegularHoursPerPeriod).HasPrecision(8, 2);
+            entity.Property(policy => policy.DailyOvertimeThreshold).HasPrecision(8, 2);
+            entity.Property(policy => policy.WeeklyOvertimeThreshold).HasPrecision(8, 2);
+            entity.Property(policy => policy.WorkweekStartsOn).HasConversion<string>().HasMaxLength(12);
             entity.HasIndex(policy => policy.JurisdictionCode).IsUnique();
             entity.HasData(
-                new OvertimePolicy { Id = Guid.Parse("6f4e2a10-7c1d-4b8a-9e11-0a1b2c3d4e51"), JurisdictionCode = "US-FED", RegularHoursPerDay = 8m, RegularHoursPerPeriod = 40m, IsActive = true, CreatedAt = new DateTimeOffset(2026, 11, 26, 0, 0, 0, TimeSpan.Zero) },
-                new OvertimePolicy { Id = Guid.Parse("6f4e2a10-7c1d-4b8a-9e11-0a1b2c3d4e52"), JurisdictionCode = "TX", RegularHoursPerDay = 8m, RegularHoursPerPeriod = 40m, IsActive = true, CreatedAt = new DateTimeOffset(2026, 11, 26, 0, 0, 0, TimeSpan.Zero) });
+                new OvertimePolicy { Id = Guid.Parse("6f4e2a10-7c1d-4b8a-9e11-0a1b2c3d4e51"), JurisdictionCode = "US-FED", DailyOvertimeThreshold = null, WeeklyOvertimeThreshold = 40m, WorkweekStartsOn = DayOfWeek.Sunday, IsActive = true, CreatedAt = new DateTimeOffset(2026, 11, 26, 0, 0, 0, TimeSpan.Zero) },
+                new OvertimePolicy { Id = Guid.Parse("6f4e2a10-7c1d-4b8a-9e11-0a1b2c3d4e52"), JurisdictionCode = "TX", DailyOvertimeThreshold = null, WeeklyOvertimeThreshold = 40m, WorkweekStartsOn = DayOfWeek.Sunday, IsActive = true, CreatedAt = new DateTimeOffset(2026, 11, 26, 0, 0, 0, TimeSpan.Zero) });
         });
 
         builder.Entity<AttendanceRecord>(entity =>
@@ -397,6 +411,69 @@ public sealed class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(adjustment => adjustment.Status).HasConversion<string>().HasMaxLength(20);
             entity.HasIndex(adjustment => adjustment.TimesheetEntryId);
             entity.HasOne<TimesheetEntry>().WithMany().HasForeignKey(adjustment => adjustment.TimesheetEntryId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<Notification>(entity =>
+        {
+            entity.Property(item => item.RecipientUserId).HasMaxLength(450).IsRequired();
+            entity.Property(item => item.NotificationType).HasMaxLength(80).IsRequired();
+            entity.Property(item => item.Title).HasMaxLength(160).IsRequired();
+            entity.Property(item => item.Message).HasMaxLength(1000).IsRequired();
+            entity.Property(item => item.RelatedEntityType).HasMaxLength(80).IsRequired();
+            entity.Property(item => item.IdempotencyKey).HasMaxLength(200).IsRequired();
+            entity.HasIndex(item => item.IdempotencyKey).IsUnique();
+            entity.HasIndex(item => new { item.RecipientUserId, item.IsRead, item.CreatedAt });
+            entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(item => item.RecipientUserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<NotificationPreference>(entity =>
+        {
+            entity.Property(item => item.UserId).HasMaxLength(450).IsRequired();
+            entity.HasIndex(item => item.UserId).IsUnique();
+            entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(item => item.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<NotificationDelivery>(entity =>
+        {
+            entity.Property(item => item.Channel).HasConversion<string>().HasMaxLength(20);
+            entity.Property(item => item.DeliveryStatus).HasConversion<string>().HasMaxLength(20);
+            entity.Property(item => item.ErrorCode).HasMaxLength(80);
+            entity.HasIndex(item => item.NotificationId);
+            entity.HasOne<Notification>().WithMany().HasForeignKey(item => item.NotificationId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<NotificationTemplate>(entity =>
+        {
+            entity.Property(item => item.TemplateKey).HasMaxLength(80).IsRequired();
+            entity.Property(item => item.Subject).HasMaxLength(160).IsRequired();
+            entity.Property(item => item.Body).HasMaxLength(1000).IsRequired();
+            entity.HasIndex(item => item.TemplateKey).IsUnique();
+            entity.HasData(
+                new NotificationTemplate { Id = Guid.Parse("8a1d6c20-1111-4a11-9a11-111111111111"), TemplateKey = "ShiftPublished", Subject = "{title}", Body = "{message}", IsActive = true },
+                new NotificationTemplate { Id = Guid.Parse("8a1d6c20-2222-4a11-9a11-222222222222"), TemplateKey = "ShiftAssigned", Subject = "{title}", Body = "{message}", IsActive = true },
+                new NotificationTemplate { Id = Guid.Parse("8a1d6c20-3333-4a11-9a11-333333333333"), TemplateKey = "TimesheetSubmitted", Subject = "{title}", Body = "{message}", IsActive = true },
+                new NotificationTemplate { Id = Guid.Parse("8a1d6c20-4444-4a11-9a11-444444444444"), TemplateKey = "TimesheetApproved", Subject = "{title}", Body = "{message}", IsActive = true });
+        });
+
+        builder.Entity<NotificationOutbox>(entity =>
+        {
+            entity.Property(item => item.IdempotencyKey).HasMaxLength(200).IsRequired();
+            entity.Property(item => item.RecipientUserId).HasMaxLength(450).IsRequired();
+            entity.Property(item => item.NotificationType).HasMaxLength(80).IsRequired();
+            entity.Property(item => item.Title).HasMaxLength(160).IsRequired();
+            entity.Property(item => item.Message).HasMaxLength(1000).IsRequired();
+            entity.Property(item => item.RelatedEntityType).HasMaxLength(80).IsRequired();
+            entity.Property(item => item.LastError).HasMaxLength(80);
+            entity.HasIndex(item => item.IdempotencyKey).IsUnique();
+            entity.HasIndex(item => new { item.ProcessedAt, item.AvailableAt });
+        });
+
+        builder.Entity<EmailDispatch>(entity =>
+        {
+            entity.Property(item => item.RecipientUserId).HasMaxLength(450).IsRequired();
+            entity.Property(item => item.Subject).HasMaxLength(160).IsRequired();
+            entity.Property(item => item.Body).HasMaxLength(2000).IsRequired();
+            entity.HasIndex(item => item.CreatedAt);
         });
     }
 }

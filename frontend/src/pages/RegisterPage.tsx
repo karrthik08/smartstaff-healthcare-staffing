@@ -1,7 +1,7 @@
 import { Alert, Button, Link as MuiLink, Stack, TextField, Typography } from '@mui/material'
 import { useState, type FormEvent } from 'react'
 import { Link as RouterLink, useNavigate } from 'react-router-dom'
-import { useAuth } from '../auth/AuthContext'
+import { useAuth } from '../auth/useAuth'
 import AuthCard from './AuthCard'
 
 export default function RegisterPage() {

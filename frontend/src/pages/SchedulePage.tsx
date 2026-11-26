@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { listFacilities, listLocations, listRequisitions } from '../api/staffing'
 import { assignClinician, confirmAssignment, createShift, listAvailability, listShiftChanges, listShifts, publishShift, requestShiftChange, reviewShiftChange, saveAvailability, type Shift, type ShiftChange } from '../api/scheduling'
 import { apiErrorMessage } from '../api/client'
-import { useAuth } from '../auth/AuthContext'
+import { useAuth } from '../auth/useAuth'
 
 export default function SchedulePage() {
   const { user } = useAuth()

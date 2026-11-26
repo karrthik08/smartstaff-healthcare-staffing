@@ -2,7 +2,7 @@ import { Alert, Button, Stack, TextField, Typography } from '@mui/material'
 import { useState, type FormEvent } from 'react'
 import { changePassword, updateProfile } from '../api/auth'
 import { apiErrorMessage } from '../api/client'
-import { useAuth } from '../auth/AuthContext'
+import { useAuth } from '../auth/useAuth'
 import { roleLabels } from '../auth/roles'
 
 export default function ProfilePage() {

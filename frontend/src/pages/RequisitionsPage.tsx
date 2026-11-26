@@ -3,7 +3,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link as RouterLink, useNavigate } from 'react-router-dom'
 import { createRequisition, listFacilities, listLocations, listRequisitions, type Facility, type FacilityLocation, type Requisition, type RequisitionInput } from '../api/staffing'
 import { apiErrorMessage } from '../api/client'
-import { useAuth } from '../auth/AuthContext'
+import { useAuth } from '../auth/useAuth'
 
 const emptyRequest: RequisitionInput = {
   facilityId: '',

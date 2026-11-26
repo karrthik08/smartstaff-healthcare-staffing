@@ -386,10 +386,11 @@ public sealed class TimekeepingService : ITimekeepingService
                 return OperationResult<AdjustmentDto>.Fail(409, "Conflict", "Configure an overtime policy for this facility's jurisdiction.");
             }
 
-            var split = Split(adjustment.AdjustedHours, policy);
+            var weekStart = WeekStart(target.WorkDate, policy.WorkweekStartsOn);
+            var reserved = await ReservedRegularHoursAsync(timesheet.ClinicianProfileId, weekStart, policy.WorkweekStartsOn, target.Id, cancellationToken);
+            var split = Allocate(adjustment.AdjustedHours, policy, reserved);
             target.RegularHours = split.Regular;
             target.OvertimeHours = split.Overtime;
-            ApplyPeriodCap(entries.OrderBy(item => item.StartTime).ToList(), policy.RegularHoursPerPeriod);
             timesheet.TotalRegularHours = entries.Sum(item => item.RegularHours);
             timesheet.TotalOvertimeHours = entries.Sum(item => item.OvertimeHours);
             timesheet.UpdatedAt = DateTimeOffset.UtcNow;
@@ -417,12 +418,13 @@ public sealed class TimekeepingService : ITimekeepingService
             _db.OvertimePolicies.Add(policy);
         }
 
-        policy.RegularHoursPerDay = request.RegularHoursPerDay;
-        policy.RegularHoursPerPeriod = request.RegularHoursPerPeriod;
+        policy.DailyOvertimeThreshold = request.DailyOvertimeThreshold;
+        policy.WeeklyOvertimeThreshold = request.WeeklyOvertimeThreshold;
+        policy.WorkweekStartsOn = Enum.Parse<DayOfWeek>(request.WorkweekStartsOn, true);
         policy.IsActive = true;
         await _db.SaveChangesAsync(cancellationToken);
         await _audit.WriteAsync("OvertimePolicySaved", userId, true, policy.JurisdictionCode, ipAddress, cancellationToken);
-        return OperationResult<OvertimePolicyDto>.Ok(new OvertimePolicyDto(policy.Id, policy.JurisdictionCode, policy.RegularHoursPerDay, policy.RegularHoursPerPeriod, policy.IsActive));
+        return OperationResult<OvertimePolicyDto>.Ok(new OvertimePolicyDto(policy.Id, policy.JurisdictionCode, policy.DailyOvertimeThreshold, policy.WeeklyOvertimeThreshold, policy.WorkweekStartsOn.ToString(), policy.IsActive));
     }
 
     private async Task<OperationResult<TimesheetDto>> SaveEntryAsync(Guid timesheetId, Guid? entryId, TimesheetEntryRequest request, string userId, string? ipAddress, CancellationToken cancellationToken)
@@ -592,23 +594,58 @@ public sealed class TimekeepingService : ITimekeepingService
 
     private async Task<OperationResult<TimesheetDto>?> RecalculateAsync(Timesheet timesheet, List<TimesheetEntry> entries, CancellationToken cancellationToken)
     {
+        if (timesheet.Status == TimesheetStatus.Approved)
+        {
+            return OperationResult<TimesheetDto>.Fail(409, "Conflict", "Approved timesheets can change only through an adjustment.");
+        }
+
         var policy = await PolicyForAsync(timesheet.FacilityId, cancellationToken);
         if (policy is null)
         {
             return OperationResult<TimesheetDto>.Fail(409, "Conflict", "Configure an overtime policy for this facility's jurisdiction.");
         }
 
-        foreach (var entry in entries)
+        var weeks = entries.Select(entry => WeekStart(entry.WorkDate, policy.WorkweekStartsOn)).Distinct().ToArray();
+        var related = await (
+            from entry in _db.TimesheetEntries
+            join sheet in _db.Timesheets on entry.TimesheetId equals sheet.Id
+            where sheet.ClinicianProfileId == timesheet.ClinicianProfileId && sheet.FacilityId == timesheet.FacilityId && sheet.Status != TimesheetStatus.Approved
+            select new { entry, sheet }).ToListAsync(cancellationToken);
+        var mutable = related
+            .Where(item => weeks.Contains(WeekStart(item.entry.WorkDate, policy.WorkweekStartsOn)))
+            .Select(item => item.entry)
+            .Concat(entries)
+            .GroupBy(item => item.Id)
+            .Select(group => group.First())
+            .ToList();
+        var approved = await (
+            from entry in _db.TimesheetEntries.AsNoTracking()
+            join sheet in _db.Timesheets.AsNoTracking() on entry.TimesheetId equals sheet.Id
+            where sheet.ClinicianProfileId == timesheet.ClinicianProfileId && sheet.FacilityId == timesheet.FacilityId && sheet.Status == TimesheetStatus.Approved
+            select entry).ToListAsync(cancellationToken);
+
+        foreach (var week in weeks)
         {
-            var worked = Hours(entry.StartTime, entry.EndTime, entry.BreakMinutes);
-            var split = Split(worked, policy);
-            entry.RegularHours = split.Regular;
-            entry.OvertimeHours = split.Overtime;
+            var reserved = approved.Where(entry => WeekStart(entry.WorkDate, policy.WorkweekStartsOn) == week).Sum(entry => entry.RegularHours);
+            foreach (var entry in mutable.Where(entry => WeekStart(entry.WorkDate, policy.WorkweekStartsOn) == week).OrderBy(entry => entry.StartTime))
+            {
+                var split = Allocate(Hours(entry.StartTime, entry.EndTime, entry.BreakMinutes), policy, reserved);
+                entry.RegularHours = split.Regular;
+                entry.OvertimeHours = split.Overtime;
+                reserved += split.Regular;
+            }
         }
 
-        ApplyPeriodCap(entries.OrderBy(item => item.StartTime).ToList(), policy.RegularHoursPerPeriod);
-        timesheet.TotalRegularHours = entries.Sum(item => item.RegularHours);
-        timesheet.TotalOvertimeHours = entries.Sum(item => item.OvertimeHours);
+        var allEntries = related.Select(item => item.entry).Concat(entries).GroupBy(entry => entry.Id).Select(group => group.First()).ToList();
+        var affectedIds = allEntries.Select(entry => entry.TimesheetId).Append(timesheet.Id).Distinct().ToArray();
+        var sheets = await _db.Timesheets.Where(item => affectedIds.Contains(item.Id) && item.Status != TimesheetStatus.Approved).ToListAsync(cancellationToken);
+        foreach (var sheet in sheets)
+        {
+            var sheetEntries = allEntries.Where(entry => entry.TimesheetId == sheet.Id).ToList();
+            sheet.TotalRegularHours = sheetEntries.Sum(entry => entry.RegularHours);
+            sheet.TotalOvertimeHours = sheetEntries.Sum(entry => entry.OvertimeHours);
+        }
+
         return null;
     }
 
@@ -625,22 +662,41 @@ public sealed class TimekeepingService : ITimekeepingService
         return minutes <= 0 ? 0 : Math.Round(minutes / 60m, 2, MidpointRounding.AwayFromZero);
     }
 
-    private static (decimal Regular, decimal Overtime) Split(decimal worked, OvertimePolicy policy)
+    private async Task<decimal> ReservedRegularHoursAsync(Guid profileId, DateOnly weekStart, DayOfWeek startsOn, Guid exceptEntryId, CancellationToken cancellationToken)
     {
-        var regular = worked <= policy.RegularHoursPerDay ? worked : policy.RegularHoursPerDay;
-        return (regular, worked - regular);
+        var rows = await (
+            from entry in _db.TimesheetEntries.AsNoTracking()
+            join sheet in _db.Timesheets.AsNoTracking() on entry.TimesheetId equals sheet.Id
+            where sheet.ClinicianProfileId == profileId && entry.Id != exceptEntryId
+            select new { entry.WorkDate, entry.RegularHours, sheet.Status }).ToListAsync(cancellationToken);
+        return rows.Where(row => row.Status == TimesheetStatus.Approved && WeekStart(row.WorkDate, startsOn) == weekStart).Sum(row => row.RegularHours);
     }
 
-    private static void ApplyPeriodCap(List<TimesheetEntry> entries, decimal periodCap)
+    private static (decimal Regular, decimal Overtime) Allocate(decimal worked, OvertimePolicy policy, decimal regularAlreadyUsed)
     {
-        var excess = entries.Sum(item => item.RegularHours) - periodCap;
-        for (var index = entries.Count - 1; index >= 0 && excess > 0; index--)
+        var regularCandidate = worked;
+        var overtime = 0m;
+        if (policy.DailyOvertimeThreshold is decimal daily && daily > 0 && worked > daily)
         {
-            var move = Math.Min(entries[index].RegularHours, excess);
-            entries[index].RegularHours -= move;
-            entries[index].OvertimeHours += move;
-            excess -= move;
+            regularCandidate = daily;
+            overtime = worked - daily;
         }
+
+        var remaining = policy.WeeklyOvertimeThreshold - regularAlreadyUsed;
+        if (remaining < 0)
+        {
+            remaining = 0;
+        }
+
+        var regular = regularCandidate <= remaining ? regularCandidate : remaining;
+        overtime += regularCandidate - regular;
+        return (regular, overtime);
+    }
+
+    private static DateOnly WeekStart(DateOnly workDate, DayOfWeek startsOn)
+    {
+        var delta = ((int)workDate.DayOfWeek - (int)startsOn + 7) % 7;
+        return workDate.AddDays(-delta);
     }
 
     private async Task<bool> CanReviewAsync(Timesheet timesheet, string userId, CancellationToken cancellationToken)
@@ -758,21 +814,35 @@ public sealed class TimekeepingService : ITimekeepingService
     private async Task<AttendanceDto> MapAttendanceAsync(AttendanceRecord record, bool created, CancellationToken cancellationToken)
     {
         var profile = await _db.ClinicianProfiles.AsNoTracking().FirstAsync(item => item.Id == record.ClinicianProfileId, cancellationToken);
-        var facilityId = await (
+        var facility = await (
             from assignment in _db.ShiftAssignments.AsNoTracking()
             join shift in _db.Shifts.AsNoTracking() on assignment.ShiftId equals shift.Id
+            join site in _db.HealthcareFacilities.AsNoTracking() on shift.FacilityId equals site.Id
             where assignment.Id == record.ShiftAssignmentId
-            select shift.FacilityId).FirstAsync(cancellationToken);
-        return new AttendanceDto(record.Id, record.ShiftAssignmentId, record.ClinicianProfileId, $"{profile.FirstName} {profile.LastName}", facilityId, record.ClockInTime, record.ClockOutTime, record.AttendanceStatus.ToString(), created);
+            select site).FirstAsync(cancellationToken);
+        var zone = TimeZoneInfo.FindSystemTimeZoneById(facility.TimeZoneId);
+        return new AttendanceDto(
+            record.Id,
+            record.ShiftAssignmentId,
+            record.ClinicianProfileId,
+            $"{profile.FirstName} {profile.LastName}",
+            facility.Id,
+            facility.TimeZoneId,
+            record.ClockInTime,
+            record.ClockOutTime,
+            Local(record.ClockInTime, zone),
+            record.ClockOutTime is DateTimeOffset clockOut ? Local(clockOut, zone) : null,
+            record.AttendanceStatus.ToString(),
+            created);
     }
 
     private async Task<TimesheetDto> MapTimesheetAsync(Timesheet timesheet, bool created, CancellationToken cancellationToken)
     {
         var profile = await _db.ClinicianProfiles.AsNoTracking().FirstAsync(item => item.Id == timesheet.ClinicianProfileId, cancellationToken);
         var facility = await _db.HealthcareFacilities.AsNoTracking().FirstAsync(item => item.Id == timesheet.FacilityId, cancellationToken);
-        var entries = await _db.TimesheetEntries.AsNoTracking().Where(item => item.TimesheetId == timesheet.Id).OrderBy(item => item.StartTime)
-            .Select(item => new TimesheetEntryDto(item.Id, item.ShiftAssignmentId, item.WorkDate, item.StartTime, item.EndTime, item.BreakMinutes, item.RegularHours, item.OvertimeHours, item.Notes))
-            .ToListAsync(cancellationToken);
+        var zone = TimeZoneInfo.FindSystemTimeZoneById(facility.TimeZoneId);
+        var stored = await _db.TimesheetEntries.AsNoTracking().Where(item => item.TimesheetId == timesheet.Id).OrderBy(item => item.StartTime).ToListAsync(cancellationToken);
+        var entries = stored.Select(item => new TimesheetEntryDto(item.Id, item.ShiftAssignmentId, item.WorkDate, item.StartTime, item.EndTime, Local(item.StartTime, zone), Local(item.EndTime, zone), item.BreakMinutes, item.RegularHours, item.OvertimeHours, item.Notes)).ToList();
         return new TimesheetDto(
             timesheet.Id,
             timesheet.ClinicianProfileId,
@@ -802,6 +872,9 @@ public sealed class TimekeepingService : ITimekeepingService
         ChangedAt = DateTimeOffset.UtcNow,
         Comments = comments
     };
+
+    private static string Local(DateTimeOffset instant, TimeZoneInfo zone) =>
+        TimeZoneInfo.ConvertTime(instant, zone).ToString("yyyy-MM-ddTHH:mm");
 
     private static AdjustmentDto MapAdjustment(TimesheetAdjustment adjustment) => new(
         adjustment.Id,
