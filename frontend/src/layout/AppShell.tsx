@@ -24,7 +24,10 @@ export default function AppShell() {
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>SmartStaff</Typography>
           {user && (
             <>
-              <Chip label={user.roles.map((role) => roleLabels[role] ?? role).join(', ')} sx={{ mr: 2, color: 'inherit', borderColor: 'rgba(255,255,255,0.4)' }} variant="outlined" />
+              <Typography sx={{ mr: 1.5, minWidth: 0 }} noWrap>
+                {user.firstName} {user.lastName}
+              </Typography>
+              <Chip label={user.roles.map((role) => roleLabels[role] ?? role).join(', ')} size="small" sx={{ mr: 2, color: 'inherit', borderColor: 'rgba(255,255,255,0.4)' }} variant="outlined" />
               <Button color="inherit" startIcon={<LogoutIcon />} onClick={onLogout}>Sign out</Button>
             </>
           )}

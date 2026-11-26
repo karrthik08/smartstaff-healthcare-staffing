@@ -7,6 +7,7 @@ export type AuthUser = {
   firstName: string
   lastName: string
   roles: string[]
+  phoneNumber?: string | null
 }
 
 type SessionResponse = {
@@ -65,9 +66,12 @@ export async function resetPassword(email: string, token: string, newPassword: s
   return response.data.message
 }
 
-export async function updateProfile(input: { firstName: string; lastName: string; phoneNumber?: string }) {
-  const response = await apiClient.put<AuthUser>('/api/profile', input)
-  return response.data
+export async function changePassword(currentPassword: string, newPassword: string) {
+  const response = await apiClient.post<{ message: string }>('/api/profile/password', {
+    currentPassword,
+    newPassword,
+  })
+  return response.data.message
 }
 
 export type DashboardResponse = {
@@ -82,22 +86,40 @@ export async function getDashboard(workspace: string) {
   return response.data
 }
 
+export async function updateProfile(input: { firstName: string; lastName: string; phoneNumber?: string }) {
+  const response = await apiClient.put<AuthUser>('/api/profile', input)
+  return response.data
+}
+
 export type UserSummary = {
   id: string
   email: string
   firstName: string
   lastName: string
   locked: boolean
+  active: boolean
   roles: string[]
 }
 
-export async function listUsers() {
-  const response = await apiClient.get<UserSummary[]>('/api/admin/users')
+export type UserPage = {
+  items: UserSummary[]
+  page: number
+  pageSize: number
+  total: number
+}
+
+export async function listUsers(query: { search?: string; role?: string; active?: string; page?: number; pageSize?: number } = {}) {
+  const response = await apiClient.get<UserPage>('/api/admin/users', { params: query })
   return response.data
 }
 
 export async function updateUserRoles(id: string, roles: string[]) {
   const response = await apiClient.put<UserSummary>(`/api/admin/users/${id}/roles`, { roles })
+  return response.data
+}
+
+export async function updateUserStatus(id: string, active: boolean) {
+  const response = await apiClient.put<UserSummary>(`/api/admin/users/${id}/status`, { active })
   return response.data
 }
 

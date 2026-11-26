@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SmartStaff.API.Authentication;
 using SmartStaff.Application.Authentication;
 
 namespace SmartStaff.API.Controllers;
@@ -10,20 +11,28 @@ namespace SmartStaff.API.Controllers;
 public sealed class DashboardsController : ControllerBase
 {
     [HttpGet("administrator")]
-    [Authorize(Roles = AppRoles.Administrator)]
+    [Authorize(Policy = AuthorizationPolicies.Administrator)]
     public IActionResult Administrator() => Workspace("administrator", "Administrator workspace", "You can manage users, assign roles, and review audit records.");
 
+    [HttpGet("recruiter")]
+    [Authorize(Policy = AuthorizationPolicies.Recruiter)]
+    public IActionResult Recruiter() => Workspace("recruiter", "Recruiter workspace", "You can manage staffing operations for this account.");
+
     [HttpGet("coordinator")]
-    [Authorize(Roles = AppRoles.Administrator + "," + AppRoles.StaffingCoordinator)]
-    public IActionResult Coordinator() => Workspace("coordinator", "Staffing coordinator workspace", "You can manage staffing operations for this account.");
+    [Authorize(Policy = AuthorizationPolicies.Recruiter)]
+    public IActionResult Coordinator() => Recruiter();
 
     [HttpGet("clinician")]
-    [Authorize(Roles = AppRoles.Administrator + "," + AppRoles.Clinician)]
+    [Authorize(Policy = AuthorizationPolicies.Clinician)]
     public IActionResult Clinician() => Workspace("clinician", "Clinician workspace", "You can manage your personal profile and view your clinician workspace.");
 
+    [HttpGet("facility")]
+    [Authorize(Policy = AuthorizationPolicies.FacilityManager)]
+    public IActionResult Facility() => Workspace("facility", "Facility manager workspace", "You can manage the facility operations authorized for this account.");
+
     [HttpGet("hospital")]
-    [Authorize(Roles = AppRoles.Administrator + "," + AppRoles.HospitalAdministrator)]
-    public IActionResult Hospital() => Workspace("hospital", "Hospital administrator workspace", "You can manage the hospital operations authorized for this account.");
+    [Authorize(Policy = AuthorizationPolicies.FacilityManager)]
+    public IActionResult Hospital() => Facility();
 
     private IActionResult Workspace(string workspace, string title, string message) =>
         Ok(new DashboardDto(workspace, title, message, DateTimeOffset.UtcNow));

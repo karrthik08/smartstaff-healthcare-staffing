@@ -81,20 +81,6 @@ public sealed class AuthenticationTests
             return;
         }
 
-        await using var scope = _factory.Services.CreateAsyncScope();
-        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var created = await users.Users.Where(user => user.Email != null && user.Email.EndsWith("@smartstaff.test")).ToListAsync();
-        var ids = created.Select(user => user.Id).ToArray();
-        db.RefreshTokens.RemoveRange(db.RefreshTokens.Where(token => ids.Contains(token.UserId)));
-        db.PasswordResetTokens.RemoveRange(db.PasswordResetTokens.Where(token => ids.Contains(token.UserId)));
-        db.AuditLogs.RemoveRange(db.AuditLogs.Where(log => log.UserId != null && ids.Contains(log.UserId)));
-        await db.SaveChangesAsync();
-        foreach (var user in created)
-        {
-            await users.DeleteAsync(user);
-        }
-
         _client.Dispose();
         await _factory.DisposeAsync();
     }

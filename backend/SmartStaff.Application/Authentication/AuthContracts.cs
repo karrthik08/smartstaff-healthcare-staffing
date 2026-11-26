@@ -5,7 +5,8 @@ public sealed record AuthenticatedUserDto(
     string Email,
     string FirstName,
     string LastName,
-    IReadOnlyList<string> Roles);
+    IReadOnlyList<string> Roles,
+    string? PhoneNumber);
 
 public sealed record RegisterRequest(
     string Email,
@@ -25,6 +26,12 @@ public sealed record UpdateProfileRequest(string FirstName, string LastName, str
 
 public sealed record UpdateRolesRequest(IReadOnlyList<string> Roles);
 
+public sealed record UpdateAccountStatusRequest(bool? Active);
+
+public sealed record ChangePasswordRequest(string CurrentPassword, string NewPassword);
+
+public sealed record UserListQuery(string? Search, string? Role, bool? Active, int Page, int PageSize);
+
 public sealed record AuthSession(AuthenticatedUserDto User, string RefreshToken, DateTimeOffset RefreshTokenExpiresAt);
 
 public sealed record DashboardDto(string Workspace, string Title, string Message, DateTimeOffset GeneratedAtUtc);
@@ -35,7 +42,14 @@ public sealed record UserSummaryDto(
     string FirstName,
     string LastName,
     bool Locked,
+    bool Active,
     IReadOnlyList<string> Roles);
+
+public sealed record UserPageDto(
+    IReadOnlyList<UserSummaryDto> Items,
+    int Page,
+    int PageSize,
+    int Total);
 
 public sealed record AuditLogDto(
     Guid Id,

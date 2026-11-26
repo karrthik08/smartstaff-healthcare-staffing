@@ -56,7 +56,24 @@ public sealed class UpdateRolesRequestValidator : AbstractValidator<UpdateRolesR
     public UpdateRolesRequestValidator()
     {
         RuleFor(request => request.Roles).NotNull().NotEmpty();
-        RuleForEach(request => request.Roles).Must(AppRoles.IsKnown)
+        RuleForEach(request => request.Roles).Must(AppRoles.IsAssignable)
             .WithMessage("One or more roles are not recognized.");
+    }
+}
+
+public sealed class UpdateAccountStatusRequestValidator : AbstractValidator<UpdateAccountStatusRequest>
+{
+    public UpdateAccountStatusRequestValidator()
+    {
+        RuleFor(request => request.Active).NotNull();
+    }
+}
+
+public sealed class ChangePasswordRequestValidator : AbstractValidator<ChangePasswordRequest>
+{
+    public ChangePasswordRequestValidator()
+    {
+        RuleFor(request => request.CurrentPassword).NotEmpty().MaximumLength(128);
+        RuleFor(request => request.NewPassword).NotEmpty().MinimumLength(12).MaximumLength(128);
     }
 }

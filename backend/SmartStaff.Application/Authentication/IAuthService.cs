@@ -22,13 +22,17 @@ public interface IAuthService
 public interface IProfileService
 {
     Task<OperationResult<AuthenticatedUserDto>> UpdateAsync(string userId, UpdateProfileRequest request, string? ipAddress, CancellationToken cancellationToken);
+
+    Task<OperationResult<bool>> ChangePasswordAsync(string userId, ChangePasswordRequest request, string? ipAddress, CancellationToken cancellationToken);
 }
 
 public interface IUserAdminService
 {
-    Task<OperationResult<IReadOnlyList<UserSummaryDto>>> ListUsersAsync(CancellationToken cancellationToken);
+    Task<OperationResult<UserPageDto>> ListUsersAsync(UserListQuery query, CancellationToken cancellationToken);
 
     Task<OperationResult<UserSummaryDto>> UpdateRolesAsync(string actorUserId, string targetUserId, UpdateRolesRequest request, string? ipAddress, CancellationToken cancellationToken);
+
+    Task<OperationResult<UserSummaryDto>> SetActiveAsync(string actorUserId, string targetUserId, bool active, string? ipAddress, CancellationToken cancellationToken);
 
     Task<OperationResult<IReadOnlyList<AuditLogDto>>> ListAuditLogsAsync(CancellationToken cancellationToken);
 }

@@ -14,6 +14,7 @@ import { setAccessToken } from './session'
 type AuthContextValue = {
   user: AuthUser | null
   loading: boolean
+  sessionNotice: string | null
   login: (email: string, password: string) => Promise<AuthUser>
   register: (input: RegisterInput) => Promise<void>
   logout: () => Promise<void>
@@ -25,6 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
+  const [sessionNotice, setSessionNotice] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
@@ -46,8 +48,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const onExpired = () => {
+      setSessionNotice('Your session expired. Sign in again.')
       setUser(null)
-      navigate('/login', { replace: true, state: { notice: 'Your session expired. Sign in again.' } })
+      navigate('/login', { replace: true })
     }
     window.addEventListener('smartstaff:session-expired', onExpired)
     return () => window.removeEventListener('smartstaff:session-expired', onExpired)
@@ -56,9 +59,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AuthContextValue>(() => ({
     user,
     loading,
+    sessionNotice,
     async login(email, password) {
       try {
         const next = await loginRequest(email, password)
+        setSessionNotice(null)
         setUser(next)
         return next
       } catch (error) {
@@ -80,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null)
       }
     },
-  }), [loading, user])
+  }), [loading, sessionNotice, user])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

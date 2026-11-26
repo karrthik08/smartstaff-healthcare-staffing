@@ -9,6 +9,8 @@ public sealed class ApplicationUser : IdentityUser
     public string FirstName { get; set; } = "";
 
     public string LastName { get; set; } = "";
+
+    public bool IsActive { get; set; } = true;
 }
 
 public sealed class ApplicationDbContext : IdentityDbContext<ApplicationUser>
@@ -32,6 +34,7 @@ public sealed class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.ToTable("Users");
             entity.Property(user => user.FirstName).HasMaxLength(100).IsRequired();
             entity.Property(user => user.LastName).HasMaxLength(100).IsRequired();
+            entity.Property(user => user.IsActive).HasDefaultValue(true);
         });
         builder.Entity<IdentityRole>().ToTable("Roles");
         builder.Entity<IdentityUserRole<string>>().ToTable("UserRoles");

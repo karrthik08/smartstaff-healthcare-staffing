@@ -107,6 +107,12 @@ public sealed class AuthService : IAuthService, IProfileService, IUserAdminServi
             return Locked();
         }
 
+        if (!user.IsActive)
+        {
+            await _audit.WriteAsync("LoginFailed", user.Id, false, "Account inactive", ipAddress, cancellationToken);
+            return Inactive();
+        }
+
         if (!await _users.CheckPasswordAsync(user, request.Password))
         {
             await _users.AccessFailedAsync(user);
@@ -150,7 +156,7 @@ public sealed class AuthService : IAuthService, IProfileService, IUserAdminServi
         }
 
         var user = await _users.FindByIdAsync(existing.UserId);
-        if (user is null || await _users.IsLockedOutAsync(user))
+        if (user is null || await _users.IsLockedOutAsync(user) || !user.IsActive)
         {
             await RevokeFamilyAsync(existing.FamilyId, cancellationToken);
             return OperationResult<AuthSession>.Fail(401, "Session expired", "Sign in again.");
@@ -305,16 +311,77 @@ public sealed class AuthService : IAuthService, IProfileService, IUserAdminServi
         return OperationResult<AuthenticatedUserDto>.Ok(await ToDtoAsync(user));
     }
 
-    public async Task<OperationResult<IReadOnlyList<UserSummaryDto>>> ListUsersAsync(CancellationToken cancellationToken)
+    public async Task<OperationResult<bool>> ChangePasswordAsync(
+        string userId,
+        ChangePasswordRequest request,
+        string? ipAddress,
+        CancellationToken cancellationToken)
     {
-        var users = await _users.Users.OrderBy(user => user.Email).ToListAsync(cancellationToken);
-        var summaries = new List<UserSummaryDto>(users.Count);
-        foreach (var user in users)
+        var user = await _users.FindByIdAsync(userId);
+        if (user is null || !user.IsActive)
+        {
+            return OperationResult<bool>.Fail(401, "Session expired", "Sign in again.");
+        }
+
+        var changed = await _users.ChangePasswordAsync(user, request.CurrentPassword, request.NewPassword);
+        if (!changed.Succeeded)
+        {
+            await _audit.WriteAsync("PasswordChangeFailed", user.Id, false, "Current password or policy rejected the change", ipAddress, cancellationToken);
+            return OperationResult<bool>.Fail(
+                400,
+                "Password change failed",
+                string.Join(" ", changed.Errors.Select(error => error.Description)));
+        }
+
+        await RevokeFamilyForUserAsync(user.Id, cancellationToken);
+        await _audit.WriteAsync("PasswordChanged", user.Id, true, null, ipAddress, cancellationToken);
+        return OperationResult<bool>.Ok(true);
+    }
+
+    public async Task<OperationResult<UserPageDto>> ListUsersAsync(UserListQuery query, CancellationToken cancellationToken)
+    {
+        var page = query.Page < 1 ? 1 : query.Page;
+        var pageSize = query.PageSize is < 1 or > 50 ? 10 : query.PageSize;
+        var users = _users.Users.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            var search = query.Search.Trim().ToLowerInvariant();
+            users = users.Where(user =>
+                (user.Email != null && user.Email.ToLower().Contains(search))
+                || user.FirstName.ToLower().Contains(search)
+                || user.LastName.ToLower().Contains(search));
+        }
+
+        if (query.Active is not null)
+        {
+            users = users.Where(user => user.IsActive == query.Active);
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.Role))
+        {
+            var names = AppRoles.StoredNamesForFilter(query.Role).ToArray();
+            var matchingIds =
+                from userRole in _dbContext.UserRoles
+                join role in _dbContext.Roles on userRole.RoleId equals role.Id
+                where role.Name != null && names.Contains(role.Name)
+                select userRole.UserId;
+            users = users.Where(user => matchingIds.Contains(user.Id));
+        }
+
+        var total = await users.CountAsync(cancellationToken);
+        var pageItems = await users
+            .OrderBy(user => user.Email)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+        var summaries = new List<UserSummaryDto>(pageItems.Count);
+        foreach (var user in pageItems)
         {
             summaries.Add(await ToSummaryAsync(user));
         }
 
-        return OperationResult<IReadOnlyList<UserSummaryDto>>.Ok(summaries);
+        return OperationResult<UserPageDto>.Ok(new UserPageDto(summaries, page, pageSize, total));
     }
 
     public async Task<OperationResult<UserSummaryDto>> UpdateRolesAsync(
@@ -325,7 +392,7 @@ public sealed class AuthService : IAuthService, IProfileService, IUserAdminServi
         CancellationToken cancellationToken)
     {
         var roles = request.Roles.Distinct(StringComparer.Ordinal).ToArray();
-        if (roles.Length == 0 || roles.Any(role => !AppRoles.IsKnown(role)))
+        if (roles.Length == 0 || roles.Any(role => !AppRoles.IsAssignable(role)))
         {
             return OperationResult<UserSummaryDto>.Fail(
                 400,
@@ -340,6 +407,16 @@ public sealed class AuthService : IAuthService, IProfileService, IUserAdminServi
         }
 
         var current = await _users.GetRolesAsync(user);
+        if (current.Contains(AppRoles.Administrator, StringComparer.Ordinal)
+            && !roles.Contains(AppRoles.Administrator, StringComparer.Ordinal)
+            && await AdministratorCountAsync() <= 1)
+        {
+            await _audit.WriteAsync("RolesRejected", actorUserId, false, "Last administrator role retained", ipAddress, cancellationToken);
+            return OperationResult<UserSummaryDto>.Fail(
+                409,
+                "Roles rejected",
+                "The last administrator role cannot be removed.");
+        }
         var removal = await _users.RemoveFromRolesAsync(user, current);
         if (!removal.Succeeded)
         {
@@ -359,6 +436,44 @@ public sealed class AuthService : IAuthService, IProfileService, IUserAdminServi
             $"Target {user.Id}",
             ipAddress,
             cancellationToken);
+        return OperationResult<UserSummaryDto>.Ok(await ToSummaryAsync(user));
+    }
+
+    public async Task<OperationResult<UserSummaryDto>> SetActiveAsync(
+        string actorUserId,
+        string targetUserId,
+        bool active,
+        string? ipAddress,
+        CancellationToken cancellationToken)
+    {
+        var user = await _users.FindByIdAsync(targetUserId);
+        if (user is null)
+        {
+            return OperationResult<UserSummaryDto>.Fail(404, "User not found", "That account does not exist.");
+        }
+
+        if (!active && await IsOnlyActiveAdministratorAsync(user))
+        {
+            await _audit.WriteAsync("AccountStatusRejected", actorUserId, false, "Last active administrator retained", ipAddress, cancellationToken);
+            return OperationResult<UserSummaryDto>.Fail(
+                409,
+                "Account status rejected",
+                "The last active administrator cannot be deactivated.");
+        }
+
+        user.IsActive = active;
+        var updated = await _users.UpdateAsync(user);
+        if (!updated.Succeeded)
+        {
+            return OperationResult<UserSummaryDto>.Fail(400, "Account status rejected", "The account status could not be saved.");
+        }
+
+        if (!active)
+        {
+            await RevokeFamilyForUserAsync(user.Id, cancellationToken);
+        }
+
+        await _audit.WriteAsync(active ? "AccountActivated" : "AccountDeactivated", actorUserId, true, $"Target {user.Id}", ipAddress, cancellationToken);
         return OperationResult<UserSummaryDto>.Ok(await ToSummaryAsync(user));
     }
 
@@ -429,7 +544,8 @@ public sealed class AuthService : IAuthService, IProfileService, IUserAdminServi
             user.Email ?? "",
             user.FirstName,
             user.LastName,
-            roles.OrderBy(role => role, StringComparer.Ordinal).ToArray());
+            roles.OrderBy(role => role, StringComparer.Ordinal).ToArray(),
+            user.PhoneNumber);
     }
 
     private async Task<UserSummaryDto> ToSummaryAsync(ApplicationUser user)
@@ -441,6 +557,7 @@ public sealed class AuthService : IAuthService, IProfileService, IUserAdminServi
             user.FirstName,
             user.LastName,
             await _users.IsLockedOutAsync(user),
+            user.IsActive,
             roles.OrderBy(role => role, StringComparer.Ordinal).ToArray());
     }
 
@@ -455,4 +572,27 @@ public sealed class AuthService : IAuthService, IProfileService, IUserAdminServi
             423,
             "Account locked",
             "This account is temporarily locked. Try again later.");
+
+    private static OperationResult<AuthSession> Inactive() =>
+        OperationResult<AuthSession>.Fail(
+            403,
+            "Account inactive",
+            "This account is inactive.");
+
+    private async Task<int> AdministratorCountAsync()
+    {
+        var administrators = await _users.GetUsersInRoleAsync(AppRoles.Administrator);
+        return administrators.Count;
+    }
+
+    private async Task<bool> IsOnlyActiveAdministratorAsync(ApplicationUser user)
+    {
+        if (!user.IsActive || !await _users.IsInRoleAsync(user, AppRoles.Administrator))
+        {
+            return false;
+        }
+
+        var administrators = await _users.GetUsersInRoleAsync(AppRoles.Administrator);
+        return administrators.Count(administrator => administrator.IsActive) <= 1;
+    }
 }

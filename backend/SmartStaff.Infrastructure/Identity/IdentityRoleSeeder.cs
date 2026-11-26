@@ -11,7 +11,7 @@ public static class IdentityRoleSeeder
     {
         using var scope = services.CreateScope();
         var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-        foreach (var role in AppRoles.All)
+        foreach (var role in AppRoles.Assignable)
         {
             if (!await roleManager.RoleExistsAsync(role))
             {

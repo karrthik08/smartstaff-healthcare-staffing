@@ -6,10 +6,10 @@ import { primaryPath } from '../auth/roles'
 import AuthCard from './AuthCard'
 
 export default function LoginPage() {
-  const { login } = useAuth()
+  const { login, sessionNotice } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const notice = (location.state as { notice?: string } | null)?.notice
+  const notice = sessionNotice ?? (location.state as { notice?: string } | null)?.notice
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)

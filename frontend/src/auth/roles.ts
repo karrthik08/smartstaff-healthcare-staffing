@@ -1,22 +1,39 @@
 export const roleLabels: Record<string, string> = {
   Administrator: 'Administrator',
-  StaffingCoordinator: 'Staffing coordinator',
+  Recruiter: 'Recruiter',
   Clinician: 'Clinician',
-  HospitalAdministrator: 'Hospital administrator',
+  FacilityManager: 'Facility manager',
+  StaffingCoordinator: 'Recruiter',
+  'Staffing Coordinator': 'Recruiter',
+  HospitalAdministrator: 'Facility manager',
+  'Hospital Administrator': 'Facility manager',
 }
+
+const recruiterRoles = ['Administrator', 'Recruiter', 'StaffingCoordinator', 'Staffing Coordinator']
+const facilityRoles = ['Administrator', 'FacilityManager', 'HospitalAdministrator', 'Hospital Administrator']
+const clinicianRoles = ['Administrator', 'Clinician']
+const anyRole = [...new Set([...recruiterRoles, ...facilityRoles, ...clinicianRoles])]
 
 export function primaryPath(roles: string[]) {
   if (roles.includes('Administrator')) return '/dashboard/admin'
-  if (roles.includes('HospitalAdministrator')) return '/dashboard/hospital'
-  if (roles.includes('StaffingCoordinator')) return '/dashboard/coordinator'
+  if (facilityRoles.some((role) => roles.includes(role))) return '/dashboard/facility'
+  if (recruiterRoles.some((role) => roles.includes(role))) return '/dashboard/recruiter'
   return '/dashboard/clinician'
 }
 
 export const navigation = [
   { to: '/dashboard/admin', label: 'Administrator', roles: ['Administrator'] },
-  { to: '/dashboard/coordinator', label: 'Coordinator', roles: ['Administrator', 'StaffingCoordinator'] },
-  { to: '/dashboard/clinician', label: 'Clinician', roles: ['Administrator', 'Clinician'] },
-  { to: '/dashboard/hospital', label: 'Hospital', roles: ['Administrator', 'HospitalAdministrator'] },
-  { to: '/profile', label: 'Profile', roles: ['Administrator', 'StaffingCoordinator', 'Clinician', 'HospitalAdministrator'] },
-  { to: '/health', label: 'System status', roles: ['Administrator', 'StaffingCoordinator', 'Clinician', 'HospitalAdministrator'] },
+  { to: '/dashboard/recruiter', label: 'Recruiter', roles: recruiterRoles },
+  { to: '/dashboard/clinician', label: 'Clinician', roles: clinicianRoles },
+  { to: '/dashboard/facility', label: 'Facility', roles: facilityRoles },
+  { to: '/profile', label: 'Profile', roles: anyRole },
+  { to: '/health', label: 'System status', roles: anyRole },
 ]
+
+export const assignableRoles = ['Administrator', 'Recruiter', 'Clinician', 'FacilityManager'] as const
+
+export function hasAssignableRole(roles: string[], role: (typeof assignableRoles)[number]) {
+  if (role === 'Recruiter') return recruiterRoles.some((name) => roles.includes(name))
+  if (role === 'FacilityManager') return facilityRoles.filter((name) => name !== 'Administrator').some((name) => roles.includes(name))
+  return roles.includes(role)
+}

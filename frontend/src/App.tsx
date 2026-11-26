@@ -29,9 +29,11 @@ export default function App() {
             <Route path="/unauthorized" element={<UnauthorizedPage />} />
             <Route path="/health" element={<DashboardPage />} />
             <Route path="/dashboard/admin" element={<ProtectedRoute roles={['Administrator']}><AdminDashboardPage /></ProtectedRoute>} />
-            <Route path="/dashboard/coordinator" element={<ProtectedRoute roles={['Administrator', 'StaffingCoordinator']}><RoleDashboardPage workspace="coordinator" /></ProtectedRoute>} />
+            <Route path="/dashboard/recruiter" element={<ProtectedRoute roles={['Administrator', 'Recruiter', 'StaffingCoordinator', 'Staffing Coordinator']}><RoleDashboardPage workspace="recruiter" /></ProtectedRoute>} />
+            <Route path="/dashboard/coordinator" element={<Navigate to="/dashboard/recruiter" replace />} />
             <Route path="/dashboard/clinician" element={<ProtectedRoute roles={['Administrator', 'Clinician']}><RoleDashboardPage workspace="clinician" /></ProtectedRoute>} />
-            <Route path="/dashboard/hospital" element={<ProtectedRoute roles={['Administrator', 'HospitalAdministrator']}><RoleDashboardPage workspace="hospital" /></ProtectedRoute>} />
+            <Route path="/dashboard/facility" element={<ProtectedRoute roles={['Administrator', 'FacilityManager', 'HospitalAdministrator', 'Hospital Administrator']}><RoleDashboardPage workspace="facility" /></ProtectedRoute>} />
+            <Route path="/dashboard/hospital" element={<Navigate to="/dashboard/facility" replace />} />
             <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
           </Route>
         </Routes>

@@ -14,7 +14,7 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddSingleton<JwtAccessTokenFactory>();
 builder.Services.AddSmartStaffJwt(builder.Configuration);
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options => options.AddSmartStaffPolicies());
 
 var permitLimit = 20;
 if (int.TryParse(builder.Configuration["AUTH_RATE_LIMIT_PER_MINUTE"], out var configuredLimit) && configuredLimit > 0)
@@ -60,6 +60,7 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 await IdentityRoleSeeder.SeedAsync(app.Services);
+await AdministratorBootstrap.SeedAsync(app.Services, app.Configuration);
 
 if (app.Environment.IsDevelopment())
 {

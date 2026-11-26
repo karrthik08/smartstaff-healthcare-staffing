@@ -79,7 +79,11 @@ export POSTGRES_PASSWORD="$(docker exec smartstaff-postgres printenv POSTGRES_PA
 export PASSWORD_RESET_DEV_SINK=true
 ```
 
-`JWT_SIGNING_KEY` must be at least 32 bytes. Public registration creates clinician accounts only. Administrator, staffing coordinator, and hospital administrator roles are assigned through `PUT /api/admin/users/{id}/roles` by an administrator. Access tokens stay in memory. The refresh token is an HttpOnly cookie named `smartstaff.refresh`, and state-changing refresh and logout requests must send the `smartstaff.csrf` cookie value in `X-CSRF-TOKEN`.
+`JWT_SIGNING_KEY` must be at least 32 bytes. Public registration creates clinician accounts only. Administrator, recruiter, and facility manager roles are assigned by an administrator. To create the first administrator without a public registration path, set `BOOTSTRAP_ADMIN_EMAIL` and `BOOTSTRAP_ADMIN_PASSWORD` in the shell before starting the API. Bootstrap runs only when no administrator account exists, and it does not promote an existing account. Leave both variables empty to skip it. Do not commit the password.
+
+Access tokens stay in memory. The refresh token is an HttpOnly cookie named `smartstaff.refresh`, and state-changing refresh and logout requests must send the `smartstaff.csrf` cookie value in `X-CSRF-TOKEN`.
+
+Automated tests use a separate `smartstaff_test` database on the same PostgreSQL server. They do not delete rows from `smartstaff_db`.
 
 With `PASSWORD_RESET_DEV_SINK=true`, reset links are appended to `.local/password-resets.log` under the API working directory. That directory is gitignored. The API response never includes the reset token.
 
