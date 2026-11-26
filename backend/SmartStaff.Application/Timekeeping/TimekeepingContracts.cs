@@ -1,6 +1,6 @@
 namespace SmartStaff.Application.Timekeeping;
 
-public sealed record ClockRequest(DateTimeOffset? At);
+public sealed record ClockRequest(DateTimeOffset? At, DateTime? Local);
 
 public sealed record TimesheetRequest(Guid FacilityId, DateOnly PeriodStart, DateOnly PeriodEnd);
 

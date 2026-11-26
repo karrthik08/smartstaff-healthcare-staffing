@@ -75,8 +75,11 @@ public sealed class TimekeepingTests
         var firstAssignment = await AssignAsync(managerSession, clinicianSession, firstShift, first.ProfileId);
         var secondAssignment = await AssignAsync(managerSession, clinicianSession, secondShift, first.ProfileId);
 
-        Assert.That((await otherSession.SendAsync(HttpMethod.Post, $"/api/attendance/{firstAssignment}/clock-in", new { at = "2026-12-16T13:00:00Z" }, bearer: true)).StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
-        var clockIn = await ReadAsync(await clinicianSession.SendAsync(HttpMethod.Post, $"/api/attendance/{firstAssignment}/clock-in", new { at = "2026-12-16T13:00:00Z" }, bearer: true), HttpStatusCode.Created);
+        Assert.That((await clinicianSession.SendAsync(HttpMethod.Post, $"/api/attendance/{firstAssignment}/clock-in", new { local = "2026-11-01T01:30:00" }, bearer: true)).StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That((await clinicianSession.SendAsync(HttpMethod.Post, $"/api/attendance/{firstAssignment}/clock-in", new { local = "2026-03-08T02:30:00" }, bearer: true)).StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That((await otherSession.SendAsync(HttpMethod.Post, $"/api/attendance/{firstAssignment}/clock-in", new { local = "2026-12-16T07:00:00" }, bearer: true)).StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+        var clockIn = await ReadAsync(await clinicianSession.SendAsync(HttpMethod.Post, $"/api/attendance/{firstAssignment}/clock-in", new { local = "2026-12-16T07:00:00" }, bearer: true), HttpStatusCode.Created);
+        Assert.That(clockIn.GetProperty("clockInTime").GetDateTimeOffset().UtcDateTime, Is.EqualTo(new DateTime(2026, 12, 16, 13, 0, 0, DateTimeKind.Utc)));
         var repeated = await ReadAsync(await clinicianSession.SendAsync(HttpMethod.Post, $"/api/attendance/{firstAssignment}/clock-in", new { at = "2026-12-16T13:00:00Z" }, bearer: true), HttpStatusCode.OK);
         Assert.That(repeated.GetProperty("id").GetGuid(), Is.EqualTo(clockIn.GetProperty("id").GetGuid()));
         Assert.That((await clinicianSession.SendAsync(HttpMethod.Post, $"/api/attendance/{firstAssignment}/clock-out", new { at = "2026-12-16T12:00:00Z" }, bearer: true)).StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));

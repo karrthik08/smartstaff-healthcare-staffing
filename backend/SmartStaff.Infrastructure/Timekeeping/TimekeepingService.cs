@@ -28,7 +28,6 @@ public sealed class TimekeepingService : ITimekeepingService
 
     public async Task<OperationResult<AttendanceDto>> ClockInAsync(Guid assignmentId, ClockRequest request, string userId, string? ipAddress, CancellationToken cancellationToken)
     {
-        var at = request.At ?? DateTimeOffset.UtcNow;
         await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
         var gate = await LoadAssignmentAsync(assignmentId, userId, cancellationToken);
         if (gate.Error is not null)
@@ -36,6 +35,13 @@ public sealed class TimekeepingService : ITimekeepingService
             return gate.Error;
         }
 
+        var resolved = await ResolveClockAsync(assignmentId, request, cancellationToken);
+        if (resolved.Error is not null)
+        {
+            return resolved.Error;
+        }
+
+        var at = resolved.At;
         await LockAsync(gate.ProfileId, cancellationToken);
         var existing = await _db.AttendanceRecords.FirstOrDefaultAsync(item => item.ShiftAssignmentId == assignmentId, cancellationToken);
         if (existing is not null)
@@ -73,7 +79,6 @@ public sealed class TimekeepingService : ITimekeepingService
 
     public async Task<OperationResult<AttendanceDto>> ClockOutAsync(Guid assignmentId, ClockRequest request, string userId, string? ipAddress, CancellationToken cancellationToken)
     {
-        var at = request.At ?? DateTimeOffset.UtcNow;
         await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
         var gate = await LoadAssignmentAsync(assignmentId, userId, cancellationToken);
         if (gate.Error is not null)
@@ -81,6 +86,13 @@ public sealed class TimekeepingService : ITimekeepingService
             return gate.Error;
         }
 
+        var resolved = await ResolveClockAsync(assignmentId, request, cancellationToken);
+        if (resolved.Error is not null)
+        {
+            return resolved.Error;
+        }
+
+        var at = resolved.At;
         await LockAsync(gate.ProfileId, cancellationToken);
         var record = await _db.AttendanceRecords.FirstOrDefaultAsync(item => item.ShiftAssignmentId == assignmentId, cancellationToken);
         if (record is null || record.AttendanceStatus != AttendanceStatus.Open && record.ClockOutTime is null)
@@ -791,6 +803,49 @@ public sealed class TimekeepingService : ITimekeepingService
         }
 
         return (profile.Id, null);
+    }
+
+    private async Task<(DateTimeOffset At, OperationResult<AttendanceDto>? Error)> ResolveClockAsync(Guid assignmentId, ClockRequest request, CancellationToken cancellationToken)
+    {
+        if (request.Local is null)
+        {
+            return (request.At ?? DateTimeOffset.UtcNow, null);
+        }
+
+        var zoneId = await (
+            from assignment in _db.ShiftAssignments.AsNoTracking()
+            join shift in _db.Shifts.AsNoTracking() on assignment.ShiftId equals shift.Id
+            join site in _db.HealthcareFacilities.AsNoTracking() on shift.FacilityId equals site.Id
+            where assignment.Id == assignmentId
+            select site.TimeZoneId).FirstOrDefaultAsync(cancellationToken);
+        if (string.IsNullOrWhiteSpace(zoneId))
+        {
+            return (default, OperationResult<AttendanceDto>.Fail(404, "Not Found", "Assignment not found."));
+        }
+
+        TimeZoneInfo zone;
+        try
+        {
+            zone = TimeZoneInfo.FindSystemTimeZoneById(zoneId);
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            return (default, OperationResult<AttendanceDto>.Fail(409, "Invalid timezone", "The facility timezone is not recognized."));
+        }
+
+        var local = DateTime.SpecifyKind(request.Local.Value, DateTimeKind.Unspecified);
+        if (zone.IsInvalidTime(local))
+        {
+            return (default, OperationResult<AttendanceDto>.Fail(400, "Invalid local time", "That local time does not exist because of a daylight-saving transition."));
+        }
+
+        if (zone.IsAmbiguousTime(local))
+        {
+            return (default, OperationResult<AttendanceDto>.Fail(400, "Ambiguous local time", "That local time occurs twice because of a daylight-saving transition."));
+        }
+
+        var utc = TimeZoneInfo.ConvertTimeToUtc(local, zone);
+        return (new DateTimeOffset(utc, TimeSpan.Zero), null);
     }
 
     private async Task<ClinicianProfile?> OwnProfileAsync(string userId, CancellationToken cancellationToken) =>

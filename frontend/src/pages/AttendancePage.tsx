@@ -125,8 +125,8 @@ export default function AttendancePage() {
         <Stack spacing={2}>
           <Typography variant="h5" component="h2">Clock in and out</Typography>
           <TextField label="Assignment" value={assignmentId} onChange={(event) => setAssignmentId(event.target.value)} />
-          <TextField label="Clock in time" type="datetime-local" value={clockInAt} onChange={(event) => setClockInAt(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} helperText="Enter the actual time in UTC." />
-          <TextField label="Clock out time" type="datetime-local" value={clockOutAt} onChange={(event) => setClockOutAt(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} helperText="Enter the actual time in UTC." />
+          <TextField label="Clock in time" type="datetime-local" value={clockInAt} onChange={(event) => setClockInAt(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} helperText="Facility local time. The server stores UTC and rejects a missing or repeated daylight-saving hour." />
+          <TextField label="Clock out time" type="datetime-local" value={clockOutAt} onChange={(event) => setClockOutAt(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} helperText="Facility local time. The server stores UTC and rejects a missing or repeated daylight-saving hour." />
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
             <Button variant="contained" onClick={() => {
               if (!assignmentId.trim() || !clockInAt) {
@@ -153,8 +153,8 @@ export default function AttendancePage() {
           }, 'Timesheet saved.')} sx={{ alignSelf: 'flex-start' }}>Create timesheet</Button>
           <TextField label="Timesheet" value={timesheetId} onChange={(event) => setTimesheetId(event.target.value)} />
           <TextField label="Entry assignment" value={entryAssignmentId} onChange={(event) => setEntryAssignmentId(event.target.value)} />
-          <TextField label="Start" type="datetime-local" value={startTime} onChange={(event) => setStartTime(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-          <TextField label="End" type="datetime-local" value={endTime} onChange={(event) => setEndTime(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
+          <TextField label="Start" type="datetime-local" value={startTime} onChange={(event) => setStartTime(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} helperText="UTC. Timesheet hours are sent with a UTC offset." />
+          <TextField label="End" type="datetime-local" value={endTime} onChange={(event) => setEndTime(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} helperText="UTC. Timesheet hours are sent with a UTC offset." />
           <TextField label="Break minutes" value={breakMinutes} onChange={(event) => setBreakMinutes(event.target.value)} />
           <Button variant="outlined" onClick={() => {
             if (!startTime || !endTime || endTime <= startTime) {

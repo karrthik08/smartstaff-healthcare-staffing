@@ -30,9 +30,9 @@ export default function AppShell() {
   }
 
   const drawer = (
-    <>
+    <Box component="nav" aria-label="Primary">
       <Toolbar />
-      <List aria-label="Primary">
+      <List>
         {links.map((link) => (
           <ListItemButton
             key={`${link.to}-${link.label}`}
@@ -44,7 +44,7 @@ export default function AppShell() {
           </ListItemButton>
         ))}
       </List>
-    </>
+    </Box>
   )
 
   return (

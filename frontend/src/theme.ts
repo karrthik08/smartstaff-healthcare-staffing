@@ -11,4 +11,26 @@ export const theme = createTheme({
     h4: { fontWeight: 650 },
   },
   shape: { borderRadius: 10 },
+  components: {
+    MuiButtonBase: {
+      styleOverrides: {
+        root: {
+          '&.Mui-focusVisible': {
+            outline: '3px solid #127C7A',
+            outlineOffset: 2,
+          },
+        },
+      },
+    },
+    MuiInputBase: {
+      styleOverrides: {
+        root: {
+          '&.Mui-focused': {
+            outline: '2px solid #127C7A',
+            outlineOffset: 2,
+          },
+        },
+      },
+    },
+  },
 })

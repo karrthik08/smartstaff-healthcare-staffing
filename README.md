@@ -1,27 +1,57 @@
 # SmartStaff
 
-SmartStaff is a healthcare staffing management application. Phase 1 provides the ASP.NET Core API, the React client, and a health check that reads a live PostgreSQL connection.
+SmartStaff is a healthcare staffing application for facilities, recruiters, and clinicians. It covers accounts and roles, facilities and job requisitions, applications and placements, shift scheduling, attendance, timesheets, in-app notifications, and staffing analytics.
 
-## Prerequisites
+It is a demonstration system. It is not a HIPAA compliance claim, and it has not been deployed to AWS.
 
-- macOS on Apple silicon, or another host with the same tools
-- .NET SDK 10.0.401
-- Node.js 22 and npm
-- Docker Desktop with Compose v2
-- The existing PostgreSQL 18 container `smartstaff-postgres`
+## Business problem
 
-That container is already running and owns the persistent volume `smartstaff_pgdata`. Do not delete or recreate it.
+Hospitals and staffing teams need one place to publish openings, move candidates through review, place a clinician, schedule a shift, record attendance, and approve the hours. SmartStaff keeps that workflow in one application with role-based access.
 
-| Setting | Value |
-|---|---|
-| Container | `smartstaff-postgres` |
-| Image | `postgres:18` |
-| Host | `localhost` |
-| Port | `5433` |
-| Database | `smartstaff_db` |
-| Username | `smartstaff` |
+## Features
 
-The database password stays in the container environment. Export it in your shell when a command needs it. Do not write it into source files or commit it.
+- Sign-in, clinician self-registration, password reset, and administrator role assignment.
+- JWT access tokens and refresh cookies. Logout rotates the account security stamp, so an older access token is rejected on the next API call.
+- Facilities, locations, and facility membership.
+- Job requisitions, recruiter assignment, and publication.
+- Clinician profiles, credentials, applications, and a recruitment pipeline through placement.
+- Shift creation in the facility timezone, publication, assignment, and clinician confirmation.
+- Attendance stored in UTC. The clock form sends the facility's local time, and the API converts it. A missing or repeated daylight-saving hour is rejected. Older attendance rows are not rewritten.
+- Timesheets, submission, and manager approval. Timesheet hour fields are still entered as UTC.
+- In-app notifications with a bell, a notification page, and preferences. Email is recorded in the database. Amazon SES is not connected.
+- Analytics for recruitment, scheduling, attendance, timesheets, and credentials, plus CSV export.
+- An administrator user list, account activation, and an audit log.
+
+## Technology
+
+- ASP.NET Core 10 and C#
+- React, TypeScript, and Material UI
+- PostgreSQL and Entity Framework Core
+- Docker Compose
+- JWT authentication and ASP.NET Core Identity
+- Terraform and GitHub Actions definitions that have not been executed against AWS
+- NUnit, Jest, React Testing Library, and axe-core through jest-axe
+- Recharts
+
+## Architecture
+
+The React client calls the API through `/api`. In local development, Vite proxies that path to the API. In the production-style Compose file, nginx does the same.
+
+The API is the only process that talks to PostgreSQL. Application services live in the Infrastructure project and return operation results to the controllers. Identity, staffing, recruitment, scheduling, timekeeping, notifications, and analytics are separate modules on one database.
+
+See `docs/ARCHITECTURE.md`.
+
+## Local setup
+
+Prerequisites: .NET SDK 10, Node.js 22, and Docker. The development database is the existing container `smartstaff-postgres` on port 5433, database `smartstaff_db`. Do not delete that container or its volume `smartstaff_pgdata`.
+
+```bash
+dotnet restore SmartStaff.sln
+dotnet tool restore
+cd frontend && npm ci
+```
+
+Export the database password from the container. Do not copy it into a file.
 
 ```bash
 export POSTGRES_HOST=localhost
@@ -29,136 +59,67 @@ export POSTGRES_PORT=5433
 export POSTGRES_DB=smartstaff_db
 export POSTGRES_USER=smartstaff
 export POSTGRES_PASSWORD="$(docker exec smartstaff-postgres printenv POSTGRES_PASSWORD)"
+export JWT_SIGNING_KEY="$(openssl rand -base64 48)"
+export PASSWORD_RESET_DEV_SINK=true
 ```
-
-## Installation
-
-From the repository root:
-
-```bash
-dotnet restore SmartStaff.sln
-dotnet tool restore
-cd frontend
-npm ci
-```
-
-`dotnet-ef` 10.0.15 is installed as a local tool from `dotnet-tools.json`.
-
-## Run the API and the React app
-
-Start the API:
 
 ```bash
 dotnet run --project backend/SmartStaff.API/SmartStaff.API.csproj --launch-profile http
 ```
 
-Start the frontend in another terminal:
-
 ```bash
-cd frontend
-npm run dev -- --host 127.0.0.1 --port 5173 --strictPort
+cd frontend && npm run dev -- --host 127.0.0.1 --port 5173 --strictPort
 ```
 
 | App | URL |
 |---|---|
 | Frontend | http://127.0.0.1:5173 |
-| API | http://localhost:5080 |
-| Health | http://localhost:5080/api/health |
+| API | http://127.0.0.1:5080 |
+| Health | http://127.0.0.1:5080/api/health |
 
-The system-status page calls `GET /api/health`. A healthy database returns HTTP 200 with `"database": "Connected"`. If PostgreSQL cannot be reached, the API returns HTTP 503 and the page shows that failure. The page does not invent staffing data.
+Do not set `BOOTSTRAP_ADMIN_EMAIL` against this database. An administrator already exists.
 
-The Vite dev server proxies `/api` to `http://localhost:5080`. `frontend/.env.development` leaves `VITE_API_URL` empty so the browser calls the Vite origin. Refresh and CSRF cookies stay on that origin.
+## Docker
 
-## Authentication
-
-Generate a signing key in the shell that starts the API. Do not write it into a committed file.
+`docker-compose.yml` is the development database definition and points at the existing data volume. `docker-compose.prod.yml` is a separate stack. Its volume is `smartstaff_prod_pgdata`, PostgreSQL is published on `127.0.0.1:5434`, the API on `127.0.0.1:5081`, and the site on `http://127.0.0.1:8080`.
 
 ```bash
+export POSTGRES_PASSWORD="$(openssl rand -base64 24)"
 export JWT_SIGNING_KEY="$(openssl rand -base64 48)"
-export POSTGRES_PASSWORD="$(docker exec smartstaff-postgres printenv POSTGRES_PASSWORD)"
-export PASSWORD_RESET_DEV_SINK=true
+docker compose -f docker-compose.prod.yml up -d postgres
+POSTGRES_HOST=127.0.0.1 POSTGRES_PORT=5434 POSTGRES_DB=smartstaff_db POSTGRES_USER=smartstaff ./scripts/apply-migrations.sh
+docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-`JWT_SIGNING_KEY` must be at least 32 bytes. Public registration creates clinician accounts only. Administrator, recruiter, and facility manager roles are assigned by an administrator. To create the first administrator without a public registration path, set `BOOTSTRAP_ADMIN_EMAIL` and `BOOTSTRAP_ADMIN_PASSWORD` in the shell before starting the API. Bootstrap runs only when no administrator account exists, and it does not promote an existing account. Leave both variables empty to skip it. Do not commit the password.
-
-Access tokens stay in memory. The refresh token is an HttpOnly cookie named `smartstaff.refresh`, and state-changing refresh and logout requests must send the `smartstaff.csrf` cookie value in `X-CSRF-TOKEN`.
-
-Automated tests use a separate `smartstaff_test` database on the same PostgreSQL server. They do not delete rows from `smartstaff_db`.
-
-With `PASSWORD_RESET_DEV_SINK=true`, reset links are appended to `.local/password-resets.log` under the API working directory. That directory is gitignored. The API response never includes the reset token.
+Keep those secrets in the shell or an untracked env file. Do not commit them.
 
 ## Database migrations
 
-The initial migration is `20261126015401_InitialCreate`. Apply it only against the existing database:
+Migrations are additive files under `backend/SmartStaff.Infrastructure/Persistence/Migrations`. Apply them with:
 
 ```bash
-dotnet ef database update \
-  --project backend/SmartStaff.Infrastructure/SmartStaff.Infrastructure.csproj \
-  --startup-project backend/SmartStaff.Infrastructure/SmartStaff.Infrastructure.csproj
+./scripts/apply-migrations.sh
 ```
 
-Confirm the history table:
+The script runs `dotnet ef database update`. It refuses a hostname containing `rds.amazonaws.com` unless `CONFIRM_REMOTE_MIGRATION=yes`. Do not drop the database, and do not run a migration `Down`.
+
+## Testing
 
 ```bash
-docker exec smartstaff-postgres \
-  psql -U smartstaff -d smartstaff_db \
-  -c 'SELECT "MigrationId", "ProductVersion" FROM "__EFMigrationsHistory";'
+dotnet test SmartStaff.sln -c Release
+cd frontend && npm test && npx tsc -b --pretty false && npm run lint && npm run build
 ```
 
-## Tests
+Details are in `docs/TESTING_GUIDE.md`.
 
-Backend:
+## Screenshots
 
-```bash
-dotnet test SmartStaff.sln
-```
+No screenshots are stored in this repository.
 
-The health integration test calls the real database. It runs when `POSTGRES_PASSWORD` is set.
+## Deployment status
 
-Frontend:
+AWS resources have not been created. Terraform has been validated locally and has not been applied. GitHub Actions workflow files exist and have not been used to deploy. See `docs/DEPLOYMENT_CHECKLIST.md`.
 
-```bash
-cd frontend
-npm test
-npm run build
-```
+## Known limitations
 
-## Docker Compose
-
-Compose builds the API and the nginx frontend. It connects the API to `smartstaff-postgres` through the host port `5433`. It does not declare a database service.
-
-Stop the local `dotnet run` and `npm run dev` processes first, because Compose publishes the API on port 5080.
-
-```bash
-export POSTGRES_PASSWORD="$(docker exec smartstaff-postgres printenv POSTGRES_PASSWORD)"
-export JWT_SIGNING_KEY="$(openssl rand -base64 48)"
-docker compose build
-docker compose up
-```
-
-| Service | URL |
-|---|---|
-| API | http://localhost:5080/api/health |
-| Frontend | http://localhost:8080 |
-
-Nginx proxies `/api` to the API container, so the page on port 8080 uses same-origin cookies. `CORS_ORIGINS` still includes the local development origins.
-
-Stop Compose with `docker compose down`. Do not add `-v`, and do not remove `smartstaff-postgres` or `smartstaff_pgdata`.
-
-## Configuration
-
-Copy `.env.example` to `.env` for Compose, or export the same variables. Leave `POSTGRES_PASSWORD` and `JWT_SIGNING_KEY` empty in the example. Export a real signing key before `docker compose up`. The API refuses to start without one.
-
-## Troubleshooting
-
-**The API exits with `POSTGRES_PASSWORD environment variable is required`.** Export the password from the running container, as shown above. Restart the API after exporting it.
-
-**Health returns 503 or the dashboard says the API could not be reached.** Confirm `smartstaff-postgres` is running and that `127.0.0.1:5433` is published. Open the frontend at `http://127.0.0.1:5173` or `http://localhost:5173`. Both origins are allowed. A different host port needs to be added to `CORS_ORIGINS`.
-
-**Port 5080 or 5173 is already in use.** Stop the existing SmartStaff process, or choose another port and update `VITE_API_URL` and `CORS_ORIGINS` to match.
-
-**`dotnet ef` cannot see the database.** Run `dotnet tool restore`, confirm `POSTGRES_PORT` is `5433`, and confirm the password variable is set in that same shell.
-
-**Docker build cannot reach PostgreSQL.** The API container uses `host.docker.internal` and port `5433`, which is the published host port. Do not point it at port `5432` on the host. Do not replace the existing database container.
-
-**npm reports moderate `glob` or `minimatch` issues.** Those come from Jest's development dependencies. `frontend/package.json` overrides them with `glob` 14.0.6 and `minimatch` 11.0.9. Do not downgrade Jest to 29 to clear the audit. That downgrade is a major version change.
+See `docs/KNOWN_LIMITATIONS.md`. Automated accessibility checks do not prove WCAG conformance. Email does not leave the application. The cloud database default in Terraform is PostgreSQL 16, while local Docker uses PostgreSQL 18.

@@ -1,20 +1,32 @@
 # Accessibility report
 
-## What was reviewed
+## Automated check
 
-Login, registration, dashboards, facility management, recruitment, clinician profile, scheduling, attendance, timesheets, notifications, and analytics already use Material UI text fields with visible labels. The production login page exposes Email, Password, Sign in, Forgot password, and Create a clinician account as accessible names.
+`frontend/src/pages/accessibility.test.tsx` renders these views in Jest with jsdom and runs axe-core:
 
-No automated axe scan was run across every route. The findings below are from the component review and the Jest auth flow, which renders the real login and registration pages.
+- Sign in
+- Clinician registration
+- Administrator dashboard
+- Facilities
+- Requisitions
+- Professional profile
+- Application pipeline
+- Scheduling
+- Attendance and timesheets
+- Notifications
+- Organization analytics
 
-## Fixes
+The pages are wrapped in `main`, which matches the application shell. The test mocks the API, so it checks structure, names, and the rules axe can run without a browser layout engine. It does not prove WCAG conformance.
 
-- A skip link points at the main content.
-- Navigation collapses into a dialog drawer below the medium breakpoint. The menu button is named Open navigation.
-- The current page is marked with `aria-current="page"`.
-- Sign-in failures use an alert, and the email and password fields point at that alert.
-- The main region keeps a minimum width of zero so wide tables can shrink instead of forcing the page sideways.
-- The loading boundary has the name Loading page.
+The shell also has a skip link, a navigation landmark named Primary, `aria-current="page"` on the current item, and a visible focus outline on buttons and inputs. Sign-in errors use an alert that the email and password fields reference. The mobile navigation button is named Open navigation. Loading the route uses a progress indicator named Loading page.
 
-## Not claimed
+## Fixes in this phase
 
-Color contrast was not measured with a contrast analyzer. Screen-reader behavior was not tested with VoiceOver. Keyboard use of the Material UI date and select controls was not retested in this phase. Those remain open checks before calling the interface fully accessible.
+- Primary navigation is a `nav` landmark.
+- Keyboard focus on buttons and inputs uses a teal outline.
+- Clock-in and clock-out helper text states that the value is facility local time.
+- Timesheet start and end helper text states that those values are UTC.
+
+## Still required
+
+A person still needs to test with a screen reader, including VoiceOver, on login, dialogs, the notification menu, data tables, and error messages. Keyboard order through Material UI selects, date fields, and dialogs was not retested in a browser for this phase. Responsive behavior was not measured with a viewport screenshot pass in this phase. Color contrast outside the axe run in Jest was not measured with a separate analyzer.

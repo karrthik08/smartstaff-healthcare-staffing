@@ -68,13 +68,13 @@ export async function listAttendance() {
   return response.data
 }
 
-export async function clockIn(assignmentId: string, at: string) {
-  const response = await apiClient.post(`/api/attendance/${assignmentId}/clock-in`, { at: asUtc(at) })
+export async function clockIn(assignmentId: string, local: string) {
+  const response = await apiClient.post(`/api/attendance/${assignmentId}/clock-in`, { local })
   return response.data
 }
 
-export async function clockOut(assignmentId: string, at: string) {
-  const response = await apiClient.post(`/api/attendance/${assignmentId}/clock-out`, { at: asUtc(at) })
+export async function clockOut(assignmentId: string, local: string) {
+  const response = await apiClient.post(`/api/attendance/${assignmentId}/clock-out`, { local })
   return response.data
 }
 
