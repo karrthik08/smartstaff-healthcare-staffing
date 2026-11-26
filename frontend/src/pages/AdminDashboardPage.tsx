@@ -42,7 +42,21 @@ export default function AdminDashboardPage() {
   }
 
   useEffect(() => {
-    load(1).catch((caught) => setError(apiErrorMessage(caught, 'Administrator data is unavailable.')))
+    let active = true
+    listUsers({ page: 1, pageSize })
+      .then(async (result) => {
+        if (!active) return
+        setUsers(result.items)
+        setTotal(result.total)
+        setPage(result.page)
+        setLogs(await listAuditLogs())
+      })
+      .catch((caught) => {
+        if (active) setError(apiErrorMessage(caught, 'Administrator data is unavailable.'))
+      })
+    return () => {
+      active = false
+    }
   }, [])
 
   async function toggleRole(user: UserSummary, roleName: (typeof assignableRoles)[number], checked: boolean) {

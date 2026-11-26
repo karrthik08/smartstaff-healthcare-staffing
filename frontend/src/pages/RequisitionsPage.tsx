@@ -57,18 +57,43 @@ export default function RequisitionsPage() {
   }
 
   useEffect(() => {
-    load().catch(() => undefined)
+    let active = true
+    listRequisitions({ page: 1, pageSize: 20 })
+      .then((page) => {
+        if (!active) return
+        setItems(page.items)
+        setLoading(false)
+      })
+      .catch((caught) => {
+        if (!active) return
+        setError(apiErrorMessage(caught, 'Requisitions could not be loaded.'))
+        setLoading(false)
+      })
     if (canCreate) {
-      listFacilities().then((page) => setFacilities(page.items)).catch(() => undefined)
+      listFacilities()
+        .then((page) => {
+          if (active) setFacilities(page.items)
+        })
+        .catch(() => undefined)
+    }
+    return () => {
+      active = false
     }
   }, [canCreate])
 
   useEffect(() => {
-    if (!form.facilityId) {
-      setLocations([])
-      return
+    if (!form.facilityId) return undefined
+    let active = true
+    listLocations(form.facilityId)
+      .then((items) => {
+        if (active) setLocations(items)
+      })
+      .catch(() => {
+        if (active) setLocations([])
+      })
+    return () => {
+      active = false
     }
-    listLocations(form.facilityId).then(setLocations).catch(() => setLocations([]))
   }, [form.facilityId])
 
   async function onCreate(event: FormEvent) {
@@ -127,7 +152,7 @@ export default function RequisitionsPage() {
           </TextField>
           <TextField label="Location" select value={form.locationId} onChange={(event) => setForm({ ...form, locationId: event.target.value })}>
             <MenuItem value="">Select a location</MenuItem>
-            {locations.map((location) => <MenuItem key={location.id} value={location.id}>{location.locationName}</MenuItem>)}
+            {(form.facilityId ? locations : []).map((location) => <MenuItem key={location.id} value={location.id}>{location.locationName}</MenuItem>)}
           </TextField>
           <TextField label="Job title" value={form.jobTitle} onChange={(event) => setForm({ ...form, jobTitle: event.target.value })} />
           <TextField label="Job specialty" value={form.specialty} onChange={(event) => setForm({ ...form, specialty: event.target.value })} />

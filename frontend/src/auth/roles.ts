@@ -33,6 +33,7 @@ export const navigation = [
   { to: '/candidates', label: 'Candidates', roles: [...new Set([...recruiterRoles, ...facilityRoles])] },
   { to: '/applications', label: 'Applications', roles: anyRole },
   { to: '/placements', label: 'Placements', roles: anyRole },
+  { to: '/schedule', label: 'Schedule', roles: anyRole },
   { to: '/profile', label: 'Profile', roles: anyRole },
   { to: '/health', label: 'System status', roles: anyRole },
 ]

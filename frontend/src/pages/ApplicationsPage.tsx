@@ -24,8 +24,19 @@ export default function ApplicationsPage() {
   }
 
   useEffect(() => {
-    load()
-  }, [])
+    let active = true
+    const request = clinician ? listMyApplications({}) : listApplications({})
+    request
+      .then((page) => {
+        if (active) setItems(page.items)
+      })
+      .catch((caught) => {
+        if (active) setError(apiErrorMessage(caught, 'Applications could not be loaded.'))
+      })
+    return () => {
+      active = false
+    }
+  }, [clinician])
 
   return (
     <Stack spacing={2}>

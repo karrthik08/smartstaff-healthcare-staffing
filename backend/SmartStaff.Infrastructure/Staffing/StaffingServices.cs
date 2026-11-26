@@ -43,6 +43,7 @@ public sealed class FacilityService : IFacilityService
             ContactEmail = request.ContactEmail.Trim(),
             ContactPhone = request.ContactPhone.Trim(),
             Status = ParseStatus(request.Status),
+            TimeZoneId = NormalizeTimeZone(request.TimeZoneId),
             CreatedAt = now,
             UpdatedAt = now
         };
@@ -153,6 +154,16 @@ public sealed class FacilityService : IFacilityService
         facility.ContactEmail = request.ContactEmail.Trim();
         facility.ContactPhone = request.ContactPhone.Trim();
         facility.Status = ParseStatus(request.Status);
+        if (!string.IsNullOrWhiteSpace(request.TimeZoneId))
+        {
+            if (!IsKnownTimeZone(request.TimeZoneId))
+            {
+                return OperationResult<FacilityDto>.Fail(400, "Invalid timezone", "Choose a valid IANA timezone.");
+            }
+
+            facility.TimeZoneId = request.TimeZoneId.Trim();
+        }
+
         facility.UpdatedAt = DateTimeOffset.UtcNow;
         await _db.SaveChangesAsync(cancellationToken);
         await _audit.WriteAsync("FacilityUpdated", userId, true, facility.Id.ToString(), ipAddress, cancellationToken);
@@ -264,6 +275,22 @@ public sealed class FacilityService : IFacilityService
         return OperationResult<MembershipDto>.Ok(MapMembership(membership));
     }
 
+    private static string NormalizeTimeZone(string? timeZoneId) =>
+        string.IsNullOrWhiteSpace(timeZoneId) || !IsKnownTimeZone(timeZoneId) ? "America/Chicago" : timeZoneId.Trim();
+
+    private static bool IsKnownTimeZone(string timeZoneId)
+    {
+        try
+        {
+            _ = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId.Trim());
+            return true;
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            return false;
+        }
+    }
+
     private static FacilityStatus ParseStatus(string? status) =>
         string.IsNullOrWhiteSpace(status) ? FacilityStatus.Active : Enum.Parse<FacilityStatus>(status, true);
 
@@ -281,6 +308,7 @@ public sealed class FacilityService : IFacilityService
         facility.ContactEmail,
         facility.ContactPhone,
         facility.Status.ToString(),
+        facility.TimeZoneId,
         facility.CreatedAt,
         facility.UpdatedAt);
 

@@ -73,6 +73,8 @@ public sealed class HealthcareFacility
 
     public FacilityStatus Status { get; set; } = FacilityStatus.Active;
 
+    public string TimeZoneId { get; set; } = "America/Chicago";
+
     public DateTimeOffset CreatedAt { get; set; }
 
     public DateTimeOffset UpdatedAt { get; set; }

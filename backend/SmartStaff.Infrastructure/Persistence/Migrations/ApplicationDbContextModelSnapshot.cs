@@ -411,6 +411,194 @@ namespace SmartStaff.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("SmartStaff.Domain.Scheduling.ClinicianAvailability", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AvailabilityType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTimeOffset>("AvailableFrom")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("AvailableUntil")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ClinicianProfileId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClinicianProfileId", "AvailableFrom");
+
+                    b.ToTable("ClinicianAvailability", t =>
+                        {
+                            t.HasCheckConstraint("CK_ClinicianAvailability_Range", "\"AvailableUntil\" > \"AvailableFrom\"");
+                        });
+                });
+
+            modelBuilder.Entity("SmartStaff.Domain.Scheduling.Shift", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("character varying(450)");
+
+                    b.Property<DateTimeOffset>("EndDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("FacilityId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("FacilityLocationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("JobRequisitionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("RequiredClinicians")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Specialty")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<DateTimeOffset>("StartDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FacilityLocationId");
+
+                    b.HasIndex("JobRequisitionId");
+
+                    b.HasIndex("FacilityId", "StartDateTime");
+
+                    b.ToTable("Shifts", t =>
+                        {
+                            t.HasCheckConstraint("CK_Shifts_TimeRange", "\"EndDateTime\" > \"StartDateTime\"");
+                        });
+                });
+
+            modelBuilder.Entity("SmartStaff.Domain.Scheduling.ShiftAssignment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("AssignedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("AssignedBy")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("character varying(450)");
+
+                    b.Property<string>("AssignmentStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTimeOffset?>("CancelledAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ClinicianProfileId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("ConfirmedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("PlacementId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ShiftId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClinicianProfileId");
+
+                    b.HasIndex("PlacementId");
+
+                    b.HasIndex("ShiftId", "ClinicianProfileId");
+
+                    b.ToTable("ShiftAssignments");
+                });
+
+            modelBuilder.Entity("SmartStaff.Domain.Scheduling.ShiftChangeRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("RequestType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("RequestedBy")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("character varying(450)");
+
+                    b.Property<DateTimeOffset?>("ReviewedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ReviewedBy")
+                        .HasMaxLength(450)
+                        .HasColumnType("character varying(450)");
+
+                    b.Property<Guid>("ShiftAssignmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ShiftAssignmentId");
+
+                    b.ToTable("ShiftChangeRequests");
+                });
+
             modelBuilder.Entity("SmartStaff.Domain.Staffing.FacilityLocation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -539,6 +727,13 @@ namespace SmartStaff.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
+
+                    b.Property<string>("TimeZoneId")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValue("America/Chicago");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -970,6 +1165,66 @@ namespace SmartStaff.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Application");
+                });
+
+            modelBuilder.Entity("SmartStaff.Domain.Scheduling.ClinicianAvailability", b =>
+                {
+                    b.HasOne("SmartStaff.Domain.Recruitment.ClinicianProfile", null)
+                        .WithMany()
+                        .HasForeignKey("ClinicianProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("SmartStaff.Domain.Scheduling.Shift", b =>
+                {
+                    b.HasOne("SmartStaff.Domain.Staffing.HealthcareFacility", null)
+                        .WithMany()
+                        .HasForeignKey("FacilityId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SmartStaff.Domain.Staffing.FacilityLocation", null)
+                        .WithMany()
+                        .HasForeignKey("FacilityLocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SmartStaff.Domain.Staffing.JobRequisition", null)
+                        .WithMany()
+                        .HasForeignKey("JobRequisitionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("SmartStaff.Domain.Scheduling.ShiftAssignment", b =>
+                {
+                    b.HasOne("SmartStaff.Domain.Recruitment.ClinicianProfile", null)
+                        .WithMany()
+                        .HasForeignKey("ClinicianProfileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SmartStaff.Domain.Recruitment.Placement", null)
+                        .WithMany()
+                        .HasForeignKey("PlacementId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SmartStaff.Domain.Scheduling.Shift", null)
+                        .WithMany()
+                        .HasForeignKey("ShiftId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("SmartStaff.Domain.Scheduling.ShiftChangeRequest", b =>
+                {
+                    b.HasOne("SmartStaff.Domain.Scheduling.ShiftAssignment", null)
+                        .WithMany()
+                        .HasForeignKey("ShiftAssignmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("SmartStaff.Domain.Staffing.FacilityLocation", b =>

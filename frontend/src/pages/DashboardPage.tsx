@@ -32,8 +32,23 @@ export default function DashboardPage() {
   }, [])
 
   useEffect(() => {
-    void loadHealth()
-  }, [loadHealth])
+    let active = true
+    getHealth()
+      .then((next) => {
+        if (!active) return
+        setReport(next)
+        setLoading(false)
+      })
+      .catch(() => {
+        if (!active) return
+        setReport(null)
+        setError('The SmartStaff API could not be reached.')
+        setLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [])
 
   const healthy = report?.status === 'Healthy'
 

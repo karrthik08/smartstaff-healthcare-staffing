@@ -10,7 +10,8 @@ public sealed record FacilityRequest(
     string ZipCode,
     string ContactEmail,
     string ContactPhone,
-    string? Status);
+    string? Status,
+    string? TimeZoneId = null);
 
 public sealed record LocationRequest(
     string LocationName,
@@ -77,6 +78,7 @@ public sealed record FacilityDto(
     string ContactEmail,
     string ContactPhone,
     string Status,
+    string TimeZoneId,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);
 

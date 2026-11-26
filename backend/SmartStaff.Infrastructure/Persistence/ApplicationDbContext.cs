@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using SmartStaff.Domain.Recruitment;
+using SmartStaff.Domain.Scheduling;
 using SmartStaff.Domain.Staffing;
 
 namespace SmartStaff.Infrastructure.Persistence;
@@ -45,6 +46,14 @@ public sealed class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<ApplicationStatusHistory> ApplicationStatusHistory => Set<ApplicationStatusHistory>();
 
     public DbSet<Placement> Placements => Set<Placement>();
+
+    public DbSet<Shift> Shifts => Set<Shift>();
+
+    public DbSet<ShiftAssignment> ShiftAssignments => Set<ShiftAssignment>();
+
+    public DbSet<ClinicianAvailability> ClinicianAvailability => Set<ClinicianAvailability>();
+
+    public DbSet<ShiftChangeRequest> ShiftChangeRequests => Set<ShiftChangeRequest>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -100,6 +109,7 @@ public sealed class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(facility => facility.ContactPhone).HasMaxLength(32).IsRequired();
             entity.Property(facility => facility.FacilityType).HasConversion<string>().HasMaxLength(40);
             entity.Property(facility => facility.Status).HasConversion<string>().HasMaxLength(20);
+            entity.Property(facility => facility.TimeZoneId).HasMaxLength(64).IsRequired().HasDefaultValue("America/Chicago");
             entity.HasIndex(facility => facility.Name);
             entity.HasIndex(facility => new { facility.State, facility.City });
         });
@@ -251,6 +261,50 @@ public sealed class ApplicationDbContext : IdentityDbContext<ApplicationUser>
                 .HasForeignKey(placement => placement.ClinicianProfileId)
                 .OnDelete(DeleteBehavior.Restrict);
             entity.ToTable(table => table.HasCheckConstraint("CK_Placements_PayRate", "\"AgreedPayRate\" > 0"));
+        });
+
+        builder.Entity<Shift>(entity =>
+        {
+            entity.Property(shift => shift.Specialty).HasMaxLength(120).IsRequired();
+            entity.Property(shift => shift.CreatedBy).HasMaxLength(450).IsRequired();
+            entity.Property(shift => shift.Status).HasConversion<string>().HasMaxLength(20);
+            entity.HasIndex(shift => new { shift.FacilityId, shift.StartDateTime });
+            entity.HasIndex(shift => shift.JobRequisitionId);
+            entity.HasOne<HealthcareFacility>().WithMany().HasForeignKey(shift => shift.FacilityId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<FacilityLocation>().WithMany().HasForeignKey(shift => shift.FacilityLocationId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<JobRequisition>().WithMany().HasForeignKey(shift => shift.JobRequisitionId).OnDelete(DeleteBehavior.Restrict);
+            entity.ToTable(table => table.HasCheckConstraint("CK_Shifts_TimeRange", "\"EndDateTime\" > \"StartDateTime\""));
+        });
+
+        builder.Entity<ShiftAssignment>(entity =>
+        {
+            entity.Property(assignment => assignment.AssignedBy).HasMaxLength(450).IsRequired();
+            entity.Property(assignment => assignment.AssignmentStatus).HasConversion<string>().HasMaxLength(20);
+            entity.HasIndex(assignment => new { assignment.ShiftId, assignment.ClinicianProfileId });
+            entity.HasIndex(assignment => assignment.ClinicianProfileId);
+            entity.HasOne<Shift>().WithMany().HasForeignKey(assignment => assignment.ShiftId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<ClinicianProfile>().WithMany().HasForeignKey(assignment => assignment.ClinicianProfileId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<Placement>().WithMany().HasForeignKey(assignment => assignment.PlacementId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<ClinicianAvailability>(entity =>
+        {
+            entity.Property(entry => entry.Notes).HasMaxLength(500).IsRequired();
+            entity.Property(entry => entry.AvailabilityType).HasConversion<string>().HasMaxLength(20);
+            entity.HasIndex(entry => new { entry.ClinicianProfileId, entry.AvailableFrom });
+            entity.HasOne<ClinicianProfile>().WithMany().HasForeignKey(entry => entry.ClinicianProfileId).OnDelete(DeleteBehavior.Cascade);
+            entity.ToTable(table => table.HasCheckConstraint("CK_ClinicianAvailability_Range", "\"AvailableUntil\" > \"AvailableFrom\""));
+        });
+
+        builder.Entity<ShiftChangeRequest>(entity =>
+        {
+            entity.Property(change => change.RequestedBy).HasMaxLength(450).IsRequired();
+            entity.Property(change => change.Reason).HasMaxLength(500).IsRequired();
+            entity.Property(change => change.ReviewedBy).HasMaxLength(450);
+            entity.Property(change => change.RequestType).HasConversion<string>().HasMaxLength(20);
+            entity.Property(change => change.Status).HasConversion<string>().HasMaxLength(20);
+            entity.HasIndex(change => change.ShiftAssignmentId);
+            entity.HasOne<ShiftAssignment>().WithMany().HasForeignKey(change => change.ShiftAssignmentId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

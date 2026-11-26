@@ -21,7 +21,17 @@ export default function CandidatesPage() {
   }
 
   useEffect(() => {
-    load()
+    let active = true
+    listClinicians({})
+      .then((page) => {
+        if (active) setItems(page.items)
+      })
+      .catch((caught) => {
+        if (active) setError(apiErrorMessage(caught, 'Candidates could not be loaded.'))
+      })
+    return () => {
+      active = false
+    }
   }, [])
 
   return (

@@ -45,7 +45,25 @@ export default function FacilitiesPage() {
   }
 
   useEffect(() => {
-    load().catch(() => undefined)
+    let active = true
+    listFacilities()
+      .then(async (page) => {
+        if (!active) return
+        setFacilities(page.items)
+        const nextLocations = await Promise.all(page.items.map(async (facility) => [facility.id, await listLocations(facility.id)] as const))
+        if (active) {
+          setLocations(Object.fromEntries(nextLocations))
+          setLoading(false)
+        }
+      })
+      .catch((caught) => {
+        if (!active) return
+        setError(apiErrorMessage(caught, 'Facilities could not be loaded.'))
+        setLoading(false)
+      })
+    return () => {
+      active = false
+    }
   }, [])
 
   async function onSubmit(event: FormEvent) {
