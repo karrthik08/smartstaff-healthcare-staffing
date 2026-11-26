@@ -536,6 +536,8 @@ namespace SmartStaff.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ClinicianProfileId");
 
+                    b.HasIndex("VerificationStatus", "ExpirationDate");
+
                     b.ToTable("ClinicianCredentials");
                 });
 
@@ -646,6 +648,8 @@ namespace SmartStaff.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("AppliedAt");
+
                     b.HasIndex("ClinicianProfileId");
 
                     b.HasIndex("Status");
@@ -692,6 +696,8 @@ namespace SmartStaff.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ClinicianProfileId");
+
+                    b.HasIndex("CreatedAt");
 
                     b.HasIndex("FacilityId");
 
@@ -794,6 +800,8 @@ namespace SmartStaff.Infrastructure.Persistence.Migrations
                     b.HasIndex("JobRequisitionId");
 
                     b.HasIndex("FacilityId", "StartDateTime");
+
+                    b.HasIndex("Status", "StartDateTime");
 
                     b.ToTable("Shifts", t =>
                         {
@@ -1307,6 +1315,8 @@ namespace SmartStaff.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("FacilityId", "Status");
+
+                    b.HasIndex("Status", "SubmittedAt");
 
                     b.HasIndex("ClinicianProfileId", "FacilityId", "PeriodStart")
                         .IsUnique();

@@ -230,6 +230,7 @@ public sealed class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(credential => credential.CredentialType).HasConversion<string>().HasMaxLength(20);
             entity.Property(credential => credential.VerificationStatus).HasConversion<string>().HasMaxLength(20);
             entity.HasIndex(credential => credential.ClinicianProfileId);
+            entity.HasIndex(credential => new { credential.VerificationStatus, credential.ExpirationDate });
             entity.HasOne(credential => credential.Profile)
                 .WithMany(profile => profile.Credentials)
                 .HasForeignKey(credential => credential.ClinicianProfileId)
@@ -243,6 +244,7 @@ public sealed class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(application => application.Status).HasConversion<string>().HasMaxLength(30);
             entity.HasIndex(application => new { application.JobRequisitionId, application.ClinicianProfileId }).IsUnique();
             entity.HasIndex(application => application.Status);
+            entity.HasIndex(application => application.AppliedAt);
             entity.HasIndex(application => application.ClinicianProfileId);
             entity.HasOne(application => application.Profile)
                 .WithMany()
@@ -274,6 +276,7 @@ public sealed class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.HasIndex(placement => placement.JobApplicationId).IsUnique();
             entity.HasIndex(placement => placement.FacilityId);
             entity.HasIndex(placement => placement.ClinicianProfileId);
+            entity.HasIndex(placement => placement.CreatedAt);
             entity.HasOne(placement => placement.Application)
                 .WithMany()
                 .HasForeignKey(placement => placement.JobApplicationId)
@@ -295,6 +298,7 @@ public sealed class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(shift => shift.CreatedBy).HasMaxLength(450).IsRequired();
             entity.Property(shift => shift.Status).HasConversion<string>().HasMaxLength(20);
             entity.HasIndex(shift => new { shift.FacilityId, shift.StartDateTime });
+            entity.HasIndex(shift => new { shift.Status, shift.StartDateTime });
             entity.HasIndex(shift => shift.JobRequisitionId);
             entity.HasOne<HealthcareFacility>().WithMany().HasForeignKey(shift => shift.FacilityId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne<FacilityLocation>().WithMany().HasForeignKey(shift => shift.FacilityLocationId).OnDelete(DeleteBehavior.Restrict);
@@ -364,6 +368,7 @@ public sealed class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(sheet => sheet.RejectionReason).HasMaxLength(500);
             entity.HasIndex(sheet => new { sheet.ClinicianProfileId, sheet.FacilityId, sheet.PeriodStart }).IsUnique();
             entity.HasIndex(sheet => new { sheet.FacilityId, sheet.Status });
+            entity.HasIndex(sheet => new { sheet.Status, sheet.SubmittedAt });
             entity.Property<uint>("xmin").HasColumnType("xid").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken();
             entity.HasOne<ClinicianProfile>().WithMany().HasForeignKey(sheet => sheet.ClinicianProfileId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne<HealthcareFacility>().WithMany().HasForeignKey(sheet => sheet.FacilityId).OnDelete(DeleteBehavior.Restrict);

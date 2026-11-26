@@ -36,6 +36,7 @@ export const navigation = [
   { to: '/schedule', label: 'Schedule', roles: anyRole },
   { to: '/attendance', label: 'Attendance', roles: anyRole },
   { to: '/notifications', label: 'Notifications', roles: anyRole },
+  { to: '/analytics', label: 'Analytics', roles: anyRole },
   { to: '/profile', label: 'Profile', roles: anyRole },
   { to: '/health', label: 'System status', roles: anyRole },
 ]

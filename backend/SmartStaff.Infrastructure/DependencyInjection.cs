@@ -12,6 +12,8 @@ using SmartStaff.Application.Recruitment;
 using SmartStaff.Application.Scheduling;
 using SmartStaff.Application.Notifications;
 using SmartStaff.Application.Timekeeping;
+using SmartStaff.Application.Analytics;
+using SmartStaff.Infrastructure.Analytics;
 using SmartStaff.Infrastructure.Notifications;
 using SmartStaff.Infrastructure.Recruitment;
 using SmartStaff.Infrastructure.Scheduling;
@@ -67,6 +69,7 @@ public static class DependencyInjection
         services.AddScoped<IPlacementService, PlacementService>();
         services.AddScoped<ISchedulingService, SchedulingService>();
         services.AddScoped<ITimekeepingService, TimekeepingService>();
+        services.AddScoped<IAnalyticsService, AnalyticsService>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<INotificationProcessor, NotificationProcessor>();
         services.AddScoped<IEmailSender, RecordingEmailSender>();
