@@ -1,5 +1,6 @@
 import LogoutIcon from '@mui/icons-material/Logout'
-import { AppBar, Box, Button, Chip, Drawer, List, ListItemButton, ListItemText, Toolbar, Typography } from '@mui/material'
+import { AppBar, Box, Button, Chip, CircularProgress, Drawer, List, ListItemButton, ListItemText, Toolbar, Typography } from '@mui/material'
+import { Suspense } from 'react'
 import { Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import NotificationBell from './NotificationBell'
@@ -49,7 +50,9 @@ export default function AppShell() {
       )}
       <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
         <Toolbar />
-        <Outlet />
+        <Suspense fallback={<CircularProgress aria-label="Loading page" />}>
+          <Outlet />
+        </Suspense>
       </Box>
     </Box>
   )

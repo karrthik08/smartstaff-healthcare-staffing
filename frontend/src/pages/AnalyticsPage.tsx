@@ -1,6 +1,5 @@
-import { Alert, Button, Card, CardContent, MenuItem, Stack, TextField, Typography } from '@mui/material'
-import { useEffect, useState } from 'react'
-import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Alert, Button, Card, CardContent, CircularProgress, MenuItem, Stack, TextField, Typography } from '@mui/material'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { analyticsCredentials, analyticsOverview, analyticsRecruitment, analyticsScheduling, analyticsTimesheets, exportAnalytics, type AnalyticsFilters, type AnalyticsOverview, type MetricPoint } from '../api/analytics'
 import { apiErrorMessage } from '../api/client'
 import { listFacilities, type Facility } from '../api/staffing'
@@ -16,6 +15,7 @@ type Charts = {
 }
 
 const emptyCharts: Charts = { applications: [], recruitmentTrend: [], scheduleTrend: [], timesheets: [], credentials: [], extra: '' }
+const AnalyticsCharts = lazy(() => import('./AnalyticsCharts'))
 
 export default function AnalyticsPage() {
   const { user } = useAuth()
@@ -119,11 +119,15 @@ export default function AnalyticsPage() {
             <Kpi label="Expiring credentials" value={overview.expiringCredentials} />
           </Stack>
           <Typography>{charts.extra}</Typography>
-          <Chart title="Applications by status" data={charts.applications} kind="bar" />
-          <Chart title="Recruitment activity" data={charts.recruitmentTrend} kind="line" />
-          <Chart title="Shift activity" data={charts.scheduleTrend} kind="line" />
-          <Chart title="Timesheet status" data={charts.timesheets} kind="bar" />
-          <Chart title="Credential status" data={charts.credentials} kind="bar" />
+          <Suspense fallback={<CircularProgress aria-label="Loading charts" />}>
+            <AnalyticsCharts charts={[
+              { title: 'Applications by status', data: charts.applications, kind: 'bar' },
+              { title: 'Recruitment activity', data: charts.recruitmentTrend, kind: 'line' },
+              { title: 'Shift activity', data: charts.scheduleTrend, kind: 'line' },
+              { title: 'Timesheet status', data: charts.timesheets, kind: 'bar' },
+              { title: 'Credential status', data: charts.credentials, kind: 'bar' },
+            ]} />
+          </Suspense>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
             {['recruitment', 'scheduling', 'attendance', 'timesheets', 'credentials'].map((report) => (
               <Button key={report} variant="outlined" onClick={() => void download(report)}>Export {report}</Button>
@@ -146,33 +150,3 @@ function Kpi({ label, value }: { label: string; value: number }) {
   )
 }
 
-function Chart({ title, data, kind }: { title: string; data: MetricPoint[]; kind: 'bar' | 'line' }) {
-  return (
-    <Card>
-      <CardContent>
-        <Typography variant="h6" component="h2">{title}</Typography>
-        {data.length === 0 ? <Typography>No records in this range.</Typography> : (
-          <ResponsiveContainer width="100%" height={240}>
-            {kind === 'bar' ? (
-              <BarChart data={data}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="label" />
-                <YAxis allowDecimals={false} />
-                <Tooltip />
-                <Bar dataKey="value" fill="#0f766e" />
-              </BarChart>
-            ) : (
-              <LineChart data={data}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="label" />
-                <YAxis allowDecimals={false} />
-                <Tooltip />
-                <Line dataKey="value" stroke="#0f766e" />
-              </LineChart>
-            )}
-          </ResponsiveContainer>
-        )}
-      </CardContent>
-    </Card>
-  )
-}

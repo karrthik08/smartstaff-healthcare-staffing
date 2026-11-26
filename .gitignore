@@ -36,6 +36,14 @@ pnpm-debug.log*
 # Docker
 docker-compose.override.yml
 
+# Terraform local state
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+
 # IDE and OS
 .idea/
 .vscode/

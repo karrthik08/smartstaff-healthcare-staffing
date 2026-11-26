@@ -1,0 +1,15 @@
+aws_region            = "us-east-1"
+project_name          = "smartstaff"
+environment           = "demo"
+acm_certificate_arn   = "arn:aws:acm:us-east-1:000000000000:certificate/example"
+github_repository     = "owner/SmartStaffproject"
+db_engine_version     = "16"
+db_instance_class     = "db.t4g.micro"
+db_multi_az           = false
+db_deletion_protection = true
+fargate_cpu           = 256
+fargate_memory        = 512
+desired_count         = 1
+enable_nat_gateway    = true
+cloudfront_price_class = "PriceClass_100"
+log_retention_days    = 14

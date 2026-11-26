@@ -46,6 +46,7 @@ function renderAt(path: string) {
 }
 
 async function signIn(user: ReturnType<typeof userEvent.setup>) {
+  await screen.findByLabelText(/^email/i)
   await user.type(screen.getByLabelText(/^email/i), clinician.email)
   await user.type(screen.getByLabelText(/^password/i), 'Phase2-Test-Passw0rd!')
   await user.click(screen.getByRole('button', { name: 'Sign in' }))
@@ -147,7 +148,7 @@ describe('authentication flow', () => {
     const user = userEvent.setup()
     renderAt('/register')
 
-    expect(screen.getByText(/Public registration creates a clinician account/)).toBeTruthy()
+    expect(await screen.findByText(/Public registration creates a clinician account/)).toBeTruthy()
     await user.type(screen.getByLabelText(/^first name/i), 'Ada')
     await user.type(screen.getByLabelText(/^last name/i), 'Clinician')
     await user.type(screen.getByLabelText(/^email/i), clinician.email)

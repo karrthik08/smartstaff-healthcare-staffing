@@ -1,30 +1,32 @@
 import { CssBaseline, ThemeProvider } from '@mui/material'
+import { lazy } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './auth/AuthContext'
 import ProtectedRoute from './auth/ProtectedRoute'
 import AppShell from './layout/AppShell'
-import AdminDashboardPage from './pages/AdminDashboardPage'
-import DashboardPage from './pages/DashboardPage'
-import ApplicationDetailPage from './pages/ApplicationDetailPage'
-import ApplicationsPage from './pages/ApplicationsPage'
-import CandidatesPage from './pages/CandidatesPage'
-import ClinicianProfilePage from './pages/ClinicianProfilePage'
-import FacilitiesPage from './pages/FacilitiesPage'
-import PlacementsPage from './pages/PlacementsPage'
-import ForgotPasswordPage from './pages/ForgotPasswordPage'
-import LoginPage from './pages/LoginPage'
-import ProfilePage from './pages/ProfilePage'
-import RegisterPage from './pages/RegisterPage'
-import RequisitionDetailPage from './pages/RequisitionDetailPage'
-import RequisitionsPage from './pages/RequisitionsPage'
-import ResetPasswordPage from './pages/ResetPasswordPage'
-import RoleDashboardPage from './pages/RoleDashboardPage'
-import SchedulePage from './pages/SchedulePage'
-import AttendancePage from './pages/AttendancePage'
-import NotificationsPage from './pages/NotificationsPage'
-import AnalyticsPage from './pages/AnalyticsPage'
-import UnauthorizedPage from './pages/UnauthorizedPage'
 import { theme } from './theme'
+
+const AdminDashboardPage = lazy(() => import('./pages/AdminDashboardPage'))
+const DashboardPage = lazy(() => import('./pages/DashboardPage'))
+const ApplicationDetailPage = lazy(() => import('./pages/ApplicationDetailPage'))
+const ApplicationsPage = lazy(() => import('./pages/ApplicationsPage'))
+const CandidatesPage = lazy(() => import('./pages/CandidatesPage'))
+const ClinicianProfilePage = lazy(() => import('./pages/ClinicianProfilePage'))
+const FacilitiesPage = lazy(() => import('./pages/FacilitiesPage'))
+const PlacementsPage = lazy(() => import('./pages/PlacementsPage'))
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'))
+const LoginPage = lazy(() => import('./pages/LoginPage'))
+const ProfilePage = lazy(() => import('./pages/ProfilePage'))
+const RegisterPage = lazy(() => import('./pages/RegisterPage'))
+const RequisitionDetailPage = lazy(() => import('./pages/RequisitionDetailPage'))
+const RequisitionsPage = lazy(() => import('./pages/RequisitionsPage'))
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'))
+const RoleDashboardPage = lazy(() => import('./pages/RoleDashboardPage'))
+const SchedulePage = lazy(() => import('./pages/SchedulePage'))
+const AttendancePage = lazy(() => import('./pages/AttendancePage'))
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage'))
+const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'))
+const UnauthorizedPage = lazy(() => import('./pages/UnauthorizedPage'))
 
 export default function App() {
   return (
