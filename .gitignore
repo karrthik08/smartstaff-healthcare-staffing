@@ -57,3 +57,12 @@ Thumbs.db
 logs/
 *.log
 .local/
+
+# Database backups and local exports
+*.dump
+*.backup
+*.sql.gz
+backups/
+
+# Terraform plans
+*.tfplan
