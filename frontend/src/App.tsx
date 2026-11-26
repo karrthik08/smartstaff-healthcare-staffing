@@ -20,6 +20,7 @@ import RequisitionsPage from './pages/RequisitionsPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import RoleDashboardPage from './pages/RoleDashboardPage'
 import SchedulePage from './pages/SchedulePage'
+import AttendancePage from './pages/AttendancePage'
 import UnauthorizedPage from './pages/UnauthorizedPage'
 import { theme } from './theme'
 
@@ -52,6 +53,7 @@ export default function App() {
             <Route path="/applications/:id" element={<ProtectedRoute><ApplicationDetailPage /></ProtectedRoute>} />
             <Route path="/placements" element={<ProtectedRoute><PlacementsPage /></ProtectedRoute>} />
             <Route path="/schedule" element={<ProtectedRoute><SchedulePage /></ProtectedRoute>} />
+            <Route path="/attendance" element={<ProtectedRoute><AttendancePage /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
           </Route>
         </Routes>

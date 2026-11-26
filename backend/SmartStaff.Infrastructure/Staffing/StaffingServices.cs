@@ -683,7 +683,7 @@ public sealed class RequisitionService : IRequisitionService
         requisition.UpdatedAt);
 }
 
-internal static class StaffingAccess
+public static class StaffingAccess
 {
     public sealed record Actor(
         bool IsAdministrator,

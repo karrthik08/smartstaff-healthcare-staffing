@@ -854,6 +854,312 @@ namespace SmartStaff.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("SmartStaff.Domain.Timekeeping.AttendanceRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AttendanceStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid>("ClinicianProfileId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ClockInTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("ClockOutTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("RecordedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ShiftAssignmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ShiftAssignmentId")
+                        .IsUnique();
+
+                    b.HasIndex("ClinicianProfileId", "ClockInTime");
+
+                    b.ToTable("AttendanceRecords", t =>
+                        {
+                            t.HasCheckConstraint("CK_Attendance_TimeRange", "\"ClockOutTime\" IS NULL OR \"ClockOutTime\" > \"ClockInTime\"");
+                        });
+                });
+
+            modelBuilder.Entity("SmartStaff.Domain.Timekeeping.OvertimePolicy", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("JurisdictionCode")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<decimal>("RegularHoursPerDay")
+                        .HasPrecision(8, 2)
+                        .HasColumnType("numeric(8,2)");
+
+                    b.Property<decimal>("RegularHoursPerPeriod")
+                        .HasPrecision(8, 2)
+                        .HasColumnType("numeric(8,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JurisdictionCode")
+                        .IsUnique();
+
+                    b.ToTable("OvertimePolicies");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("6f4e2a10-7c1d-4b8a-9e11-0a1b2c3d4e51"),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 11, 26, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            IsActive = true,
+                            JurisdictionCode = "US-FED",
+                            RegularHoursPerDay = 8m,
+                            RegularHoursPerPeriod = 40m
+                        },
+                        new
+                        {
+                            Id = new Guid("6f4e2a10-7c1d-4b8a-9e11-0a1b2c3d4e52"),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 11, 26, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            IsActive = true,
+                            JurisdictionCode = "TX",
+                            RegularHoursPerDay = 8m,
+                            RegularHoursPerPeriod = 40m
+                        });
+                });
+
+            modelBuilder.Entity("SmartStaff.Domain.Timekeeping.Timesheet", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ApprovedBy")
+                        .HasMaxLength(450)
+                        .HasColumnType("character varying(450)");
+
+                    b.Property<Guid>("ClinicianProfileId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("FacilityId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly>("PeriodEnd")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly>("PeriodStart")
+                        .HasColumnType("date");
+
+                    b.Property<string>("RejectionReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTimeOffset?>("SubmittedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("TotalOvertimeHours")
+                        .HasPrecision(8, 2)
+                        .HasColumnType("numeric(8,2)");
+
+                    b.Property<decimal>("TotalRegularHours")
+                        .HasPrecision(8, 2)
+                        .HasColumnType("numeric(8,2)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FacilityId", "Status");
+
+                    b.HasIndex("ClinicianProfileId", "FacilityId", "PeriodStart")
+                        .IsUnique();
+
+                    b.ToTable("Timesheets", t =>
+                        {
+                            t.HasCheckConstraint("CK_Timesheets_Hours", "\"TotalRegularHours\" >= 0 AND \"TotalOvertimeHours\" >= 0");
+
+                            t.HasCheckConstraint("CK_Timesheets_Period", "\"PeriodEnd\" > \"PeriodStart\"");
+                        });
+                });
+
+            modelBuilder.Entity("SmartStaff.Domain.Timekeeping.TimesheetAdjustment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("AdjustedHours")
+                        .HasPrecision(8, 2)
+                        .HasColumnType("numeric(8,2)");
+
+                    b.Property<decimal>("OriginalHours")
+                        .HasPrecision(8, 2)
+                        .HasColumnType("numeric(8,2)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("RequestedBy")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("character varying(450)");
+
+                    b.Property<DateTimeOffset?>("ReviewedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ReviewedBy")
+                        .HasMaxLength(450)
+                        .HasColumnType("character varying(450)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid>("TimesheetEntryId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TimesheetEntryId");
+
+                    b.ToTable("TimesheetAdjustments");
+                });
+
+            modelBuilder.Entity("SmartStaff.Domain.Timekeeping.TimesheetApprovalHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ChangedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ChangedBy")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("character varying(450)");
+
+                    b.Property<string>("Comments")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("NewStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("PreviousStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid>("TimesheetId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TimesheetId");
+
+                    b.ToTable("TimesheetApprovalHistory");
+                });
+
+            modelBuilder.Entity("SmartStaff.Domain.Timekeeping.TimesheetEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("BreakMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("EndTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<decimal>("OvertimeHours")
+                        .HasPrecision(8, 2)
+                        .HasColumnType("numeric(8,2)");
+
+                    b.Property<decimal>("RegularHours")
+                        .HasPrecision(8, 2)
+                        .HasColumnType("numeric(8,2)");
+
+                    b.Property<Guid>("ShiftAssignmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("StartTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("TimesheetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly>("WorkDate")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ShiftAssignmentId")
+                        .IsUnique();
+
+                    b.HasIndex("TimesheetId");
+
+                    b.ToTable("TimesheetEntries", t =>
+                        {
+                            t.HasCheckConstraint("CK_TimesheetEntries_Break", "\"BreakMinutes\" >= 0");
+
+                            t.HasCheckConstraint("CK_TimesheetEntries_Hours", "\"RegularHours\" >= 0 AND \"OvertimeHours\" >= 0");
+
+                            t.HasCheckConstraint("CK_TimesheetEntries_Time", "\"EndTime\" > \"StartTime\"");
+                        });
+                });
+
             modelBuilder.Entity("SmartStaff.Infrastructure.Persistence.ApplicationUser", b =>
                 {
                     b.Property<string>("Id")
@@ -1283,6 +1589,69 @@ namespace SmartStaff.Infrastructure.Persistence.Migrations
                     b.Navigation("Facility");
 
                     b.Navigation("Location");
+                });
+
+            modelBuilder.Entity("SmartStaff.Domain.Timekeeping.AttendanceRecord", b =>
+                {
+                    b.HasOne("SmartStaff.Domain.Recruitment.ClinicianProfile", null)
+                        .WithMany()
+                        .HasForeignKey("ClinicianProfileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SmartStaff.Domain.Scheduling.ShiftAssignment", null)
+                        .WithMany()
+                        .HasForeignKey("ShiftAssignmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("SmartStaff.Domain.Timekeeping.Timesheet", b =>
+                {
+                    b.HasOne("SmartStaff.Domain.Recruitment.ClinicianProfile", null)
+                        .WithMany()
+                        .HasForeignKey("ClinicianProfileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SmartStaff.Domain.Staffing.HealthcareFacility", null)
+                        .WithMany()
+                        .HasForeignKey("FacilityId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("SmartStaff.Domain.Timekeeping.TimesheetAdjustment", b =>
+                {
+                    b.HasOne("SmartStaff.Domain.Timekeeping.TimesheetEntry", null)
+                        .WithMany()
+                        .HasForeignKey("TimesheetEntryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("SmartStaff.Domain.Timekeeping.TimesheetApprovalHistory", b =>
+                {
+                    b.HasOne("SmartStaff.Domain.Timekeeping.Timesheet", null)
+                        .WithMany()
+                        .HasForeignKey("TimesheetId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("SmartStaff.Domain.Timekeeping.TimesheetEntry", b =>
+                {
+                    b.HasOne("SmartStaff.Domain.Scheduling.ShiftAssignment", null)
+                        .WithMany()
+                        .HasForeignKey("ShiftAssignmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SmartStaff.Domain.Timekeeping.Timesheet", null)
+                        .WithMany()
+                        .HasForeignKey("TimesheetId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("SmartStaff.Domain.Recruitment.ClinicianProfile", b =>

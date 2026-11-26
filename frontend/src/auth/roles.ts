@@ -34,6 +34,7 @@ export const navigation = [
   { to: '/applications', label: 'Applications', roles: anyRole },
   { to: '/placements', label: 'Placements', roles: anyRole },
   { to: '/schedule', label: 'Schedule', roles: anyRole },
+  { to: '/attendance', label: 'Attendance', roles: anyRole },
   { to: '/profile', label: 'Profile', roles: anyRole },
   { to: '/health', label: 'System status', roles: anyRole },
 ]

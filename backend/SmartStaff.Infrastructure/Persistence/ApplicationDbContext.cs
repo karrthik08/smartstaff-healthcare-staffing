@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using SmartStaff.Domain.Recruitment;
 using SmartStaff.Domain.Scheduling;
 using SmartStaff.Domain.Staffing;
+using SmartStaff.Domain.Timekeeping;
 
 namespace SmartStaff.Infrastructure.Persistence;
 
@@ -54,6 +55,18 @@ public sealed class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<ClinicianAvailability> ClinicianAvailability => Set<ClinicianAvailability>();
 
     public DbSet<ShiftChangeRequest> ShiftChangeRequests => Set<ShiftChangeRequest>();
+
+    public DbSet<OvertimePolicy> OvertimePolicies => Set<OvertimePolicy>();
+
+    public DbSet<AttendanceRecord> AttendanceRecords => Set<AttendanceRecord>();
+
+    public DbSet<Timesheet> Timesheets => Set<Timesheet>();
+
+    public DbSet<TimesheetEntry> TimesheetEntries => Set<TimesheetEntry>();
+
+    public DbSet<TimesheetApprovalHistory> TimesheetApprovalHistory => Set<TimesheetApprovalHistory>();
+
+    public DbSet<TimesheetAdjustment> TimesheetAdjustments => Set<TimesheetAdjustment>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -305,6 +318,85 @@ public sealed class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(change => change.Status).HasConversion<string>().HasMaxLength(20);
             entity.HasIndex(change => change.ShiftAssignmentId);
             entity.HasOne<ShiftAssignment>().WithMany().HasForeignKey(change => change.ShiftAssignmentId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<OvertimePolicy>(entity =>
+        {
+            entity.Property(policy => policy.JurisdictionCode).HasMaxLength(16).IsRequired();
+            entity.Property(policy => policy.RegularHoursPerDay).HasPrecision(8, 2);
+            entity.Property(policy => policy.RegularHoursPerPeriod).HasPrecision(8, 2);
+            entity.HasIndex(policy => policy.JurisdictionCode).IsUnique();
+            entity.HasData(
+                new OvertimePolicy { Id = Guid.Parse("6f4e2a10-7c1d-4b8a-9e11-0a1b2c3d4e51"), JurisdictionCode = "US-FED", RegularHoursPerDay = 8m, RegularHoursPerPeriod = 40m, IsActive = true, CreatedAt = new DateTimeOffset(2026, 11, 26, 0, 0, 0, TimeSpan.Zero) },
+                new OvertimePolicy { Id = Guid.Parse("6f4e2a10-7c1d-4b8a-9e11-0a1b2c3d4e52"), JurisdictionCode = "TX", RegularHoursPerDay = 8m, RegularHoursPerPeriod = 40m, IsActive = true, CreatedAt = new DateTimeOffset(2026, 11, 26, 0, 0, 0, TimeSpan.Zero) });
+        });
+
+        builder.Entity<AttendanceRecord>(entity =>
+        {
+            entity.Property(record => record.AttendanceStatus).HasConversion<string>().HasMaxLength(20);
+            entity.HasIndex(record => record.ShiftAssignmentId).IsUnique();
+            entity.HasIndex(record => new { record.ClinicianProfileId, record.ClockInTime });
+            entity.HasOne<ShiftAssignment>().WithMany().HasForeignKey(record => record.ShiftAssignmentId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<ClinicianProfile>().WithMany().HasForeignKey(record => record.ClinicianProfileId).OnDelete(DeleteBehavior.Restrict);
+            entity.ToTable(table => table.HasCheckConstraint("CK_Attendance_TimeRange", "\"ClockOutTime\" IS NULL OR \"ClockOutTime\" > \"ClockInTime\""));
+        });
+
+        builder.Entity<Timesheet>(entity =>
+        {
+            entity.Property(sheet => sheet.TotalRegularHours).HasPrecision(8, 2);
+            entity.Property(sheet => sheet.TotalOvertimeHours).HasPrecision(8, 2);
+            entity.Property(sheet => sheet.Status).HasConversion<string>().HasMaxLength(20);
+            entity.Property(sheet => sheet.ApprovedBy).HasMaxLength(450);
+            entity.Property(sheet => sheet.RejectionReason).HasMaxLength(500);
+            entity.HasIndex(sheet => new { sheet.ClinicianProfileId, sheet.FacilityId, sheet.PeriodStart }).IsUnique();
+            entity.HasIndex(sheet => new { sheet.FacilityId, sheet.Status });
+            entity.Property<uint>("xmin").HasColumnType("xid").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken();
+            entity.HasOne<ClinicianProfile>().WithMany().HasForeignKey(sheet => sheet.ClinicianProfileId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<HealthcareFacility>().WithMany().HasForeignKey(sheet => sheet.FacilityId).OnDelete(DeleteBehavior.Restrict);
+            entity.ToTable(table =>
+            {
+                table.HasCheckConstraint("CK_Timesheets_Period", "\"PeriodEnd\" > \"PeriodStart\"");
+                table.HasCheckConstraint("CK_Timesheets_Hours", "\"TotalRegularHours\" >= 0 AND \"TotalOvertimeHours\" >= 0");
+            });
+        });
+
+        builder.Entity<TimesheetEntry>(entity =>
+        {
+            entity.Property(entry => entry.RegularHours).HasPrecision(8, 2);
+            entity.Property(entry => entry.OvertimeHours).HasPrecision(8, 2);
+            entity.Property(entry => entry.Notes).HasMaxLength(500).IsRequired();
+            entity.HasIndex(entry => entry.ShiftAssignmentId).IsUnique();
+            entity.HasIndex(entry => entry.TimesheetId);
+            entity.HasOne<Timesheet>().WithMany().HasForeignKey(entry => entry.TimesheetId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<ShiftAssignment>().WithMany().HasForeignKey(entry => entry.ShiftAssignmentId).OnDelete(DeleteBehavior.Restrict);
+            entity.ToTable(table =>
+            {
+                table.HasCheckConstraint("CK_TimesheetEntries_Time", "\"EndTime\" > \"StartTime\"");
+                table.HasCheckConstraint("CK_TimesheetEntries_Break", "\"BreakMinutes\" >= 0");
+                table.HasCheckConstraint("CK_TimesheetEntries_Hours", "\"RegularHours\" >= 0 AND \"OvertimeHours\" >= 0");
+            });
+        });
+
+        builder.Entity<TimesheetApprovalHistory>(entity =>
+        {
+            entity.Property(history => history.PreviousStatus).HasConversion<string>().HasMaxLength(20);
+            entity.Property(history => history.NewStatus).HasConversion<string>().HasMaxLength(20);
+            entity.Property(history => history.ChangedBy).HasMaxLength(450).IsRequired();
+            entity.Property(history => history.Comments).HasMaxLength(500).IsRequired();
+            entity.HasIndex(history => history.TimesheetId);
+            entity.HasOne<Timesheet>().WithMany().HasForeignKey(history => history.TimesheetId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<TimesheetAdjustment>(entity =>
+        {
+            entity.Property(adjustment => adjustment.RequestedBy).HasMaxLength(450).IsRequired();
+            entity.Property(adjustment => adjustment.Reason).HasMaxLength(500).IsRequired();
+            entity.Property(adjustment => adjustment.ReviewedBy).HasMaxLength(450);
+            entity.Property(adjustment => adjustment.OriginalHours).HasPrecision(8, 2);
+            entity.Property(adjustment => adjustment.AdjustedHours).HasPrecision(8, 2);
+            entity.Property(adjustment => adjustment.Status).HasConversion<string>().HasMaxLength(20);
+            entity.HasIndex(adjustment => adjustment.TimesheetEntryId);
+            entity.HasOne<TimesheetEntry>().WithMany().HasForeignKey(adjustment => adjustment.TimesheetEntryId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 }
