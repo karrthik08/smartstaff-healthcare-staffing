@@ -1,58 +1,50 @@
-import LocalHospitalIcon from '@mui/icons-material/LocalHospital'
-import {
-  AppBar,
-  Box,
-  Drawer,
-  List,
-  ListItemButton,
-  ListItemText,
-  Toolbar,
-  Typography,
-} from '@mui/material'
-import { Route, Routes } from 'react-router-dom'
-import DashboardPage from '../pages/DashboardPage'
-
-const drawerWidth = 248
+import LogoutIcon from '@mui/icons-material/Logout'
+import { AppBar, Box, Button, Chip, Drawer, List, ListItemButton, ListItemText, Toolbar, Typography } from '@mui/material'
+import { Outlet, useNavigate } from 'react-router-dom'
+import { useAuth } from '../auth/AuthContext'
+import { navigation, roleLabels } from '../auth/roles'
 
 export default function AppShell() {
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
+  const links = user ? navigation.filter((item) => item.roles.some((role) => user.roles.includes(role))) : []
+
+  async function onLogout() {
+    try {
+      await logout()
+    } finally {
+      navigate('/login', { replace: true })
+    }
+  }
+
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
-      <AppBar position="fixed" elevation={0} sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+    <Box sx={{ display: 'flex', minHeight: '100%' }}>
+      <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
         <Toolbar>
-          <LocalHospitalIcon sx={{ mr: 1.5 }} />
-          <Box>
-            <Typography variant="h6" component="div" sx={{ lineHeight: 1.2 }}>
-              SmartStaff
-            </Typography>
-            <Typography variant="caption" sx={{ opacity: 0.85 }}>
-              Healthcare staffing
-            </Typography>
-          </Box>
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>SmartStaff</Typography>
+          {user && (
+            <>
+              <Chip label={user.roles.map((role) => roleLabels[role] ?? role).join(', ')} sx={{ mr: 2, color: 'inherit', borderColor: 'rgba(255,255,255,0.4)' }} variant="outlined" />
+              <Button color="inherit" startIcon={<LogoutIcon />} onClick={onLogout}>Sign out</Button>
+            </>
+          )}
         </Toolbar>
       </AppBar>
-
-      <Drawer
-        variant="permanent"
-        sx={{
-          width: drawerWidth,
-          flexShrink: 0,
-          [`& .MuiDrawer-paper`]: { width: drawerWidth, boxSizing: 'border-box' },
-        }}
-      >
+      {user && (
+        <Drawer variant="permanent" sx={{ width: 240, flexShrink: 0, '& .MuiDrawer-paper': { width: 240, boxSizing: 'border-box' } }}>
+          <Toolbar />
+          <List>
+            {links.map((link) => (
+              <ListItemButton key={link.to} onClick={() => navigate(link.to)}>
+                <ListItemText primary={link.label} />
+              </ListItemButton>
+            ))}
+          </List>
+        </Drawer>
+      )}
+      <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
         <Toolbar />
-        <List>
-          <ListItemButton selected>
-            <ListItemText primary="Dashboard" />
-          </ListItemButton>
-        </List>
-      </Drawer>
-
-      <Box component="main" sx={{ flexGrow: 1, p: { xs: 2, md: 4 } }}>
-        <Toolbar />
-        <Routes>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="*" element={<DashboardPage />} />
-        </Routes>
+        <Outlet />
       </Box>
     </Box>
   )

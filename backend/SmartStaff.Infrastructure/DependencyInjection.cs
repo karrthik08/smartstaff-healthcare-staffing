@@ -2,8 +2,10 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using SmartStaff.Application.Authentication;
 using SmartStaff.Application.Health;
 using SmartStaff.Infrastructure.Health;
+using SmartStaff.Infrastructure.Identity;
 using SmartStaff.Infrastructure.Persistence;
 
 namespace SmartStaff.Infrastructure;
@@ -28,11 +30,33 @@ public static class DependencyInjection
                 options.Password.RequireUppercase = true;
                 options.Password.RequireLowercase = true;
                 options.Password.RequireNonAlphanumeric = true;
+                options.Lockout.AllowedForNewUsers = true;
+                options.Lockout.MaxFailedAccessAttempts = 5;
+                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
             })
             .AddRoles<IdentityRole>()
-            .AddEntityFrameworkStores<ApplicationDbContext>();
+            .AddEntityFrameworkStores<ApplicationDbContext>()
+            .AddDefaultTokenProviders();
+
+        services.Configure<DataProtectionTokenProviderOptions>(options =>
+        {
+            options.TokenLifespan = TimeSpan.FromMinutes(30);
+        });
 
         services.AddScoped<IHealthService, HealthService>();
+        services.AddScoped<IAuditWriter, AuditWriter>();
+        services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IProfileService, AuthService>();
+        services.AddScoped<IUserAdminService, AuthService>();
+        if (string.Equals(configuration["PASSWORD_RESET_DEV_SINK"], "true", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddScoped<IPasswordResetNotifier, DevelopmentPasswordResetNotifier>();
+        }
+        else
+        {
+            services.AddScoped<IPasswordResetNotifier, NullPasswordResetNotifier>();
+        }
+
         return services;
     }
 }

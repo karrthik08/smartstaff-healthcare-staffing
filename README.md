@@ -65,9 +65,23 @@ npm run dev -- --host 127.0.0.1 --port 5173 --strictPort
 | API | http://localhost:5080 |
 | Health | http://localhost:5080/api/health |
 
-The dashboard calls `GET /api/health`. A healthy database returns HTTP 200 with `"database": "Connected"`. If PostgreSQL cannot be reached, the API returns HTTP 503 and the page shows that failure. The page does not invent staffing data.
+The system-status page calls `GET /api/health`. A healthy database returns HTTP 200 with `"database": "Connected"`. If PostgreSQL cannot be reached, the API returns HTTP 503 and the page shows that failure. The page does not invent staffing data.
 
-`frontend/.env.development` sets `VITE_API_URL=http://localhost:5080`.
+The Vite dev server proxies `/api` to `http://localhost:5080`. `frontend/.env.development` leaves `VITE_API_URL` empty so the browser calls the Vite origin. Refresh and CSRF cookies stay on that origin.
+
+## Authentication
+
+Generate a signing key in the shell that starts the API. Do not write it into a committed file.
+
+```bash
+export JWT_SIGNING_KEY="$(openssl rand -base64 48)"
+export POSTGRES_PASSWORD="$(docker exec smartstaff-postgres printenv POSTGRES_PASSWORD)"
+export PASSWORD_RESET_DEV_SINK=true
+```
+
+`JWT_SIGNING_KEY` must be at least 32 bytes. Public registration creates clinician accounts only. Administrator, staffing coordinator, and hospital administrator roles are assigned through `PUT /api/admin/users/{id}/roles` by an administrator. Access tokens stay in memory. The refresh token is an HttpOnly cookie named `smartstaff.refresh`, and state-changing refresh and logout requests must send the `smartstaff.csrf` cookie value in `X-CSRF-TOKEN`.
+
+With `PASSWORD_RESET_DEV_SINK=true`, reset links are appended to `.local/password-resets.log` under the API working directory. That directory is gitignored. The API response never includes the reset token.
 
 ## Database migrations
 
@@ -113,6 +127,7 @@ Stop the local `dotnet run` and `npm run dev` processes first, because Compose p
 
 ```bash
 export POSTGRES_PASSWORD="$(docker exec smartstaff-postgres printenv POSTGRES_PASSWORD)"
+export JWT_SIGNING_KEY="$(openssl rand -base64 48)"
 docker compose build
 docker compose up
 ```
@@ -122,13 +137,13 @@ docker compose up
 | API | http://localhost:5080/api/health |
 | Frontend | http://localhost:8080 |
 
-The browser calls `http://localhost:5080` from the page served on port 8080. `CORS_ORIGINS` includes that origin.
+Nginx proxies `/api` to the API container, so the page on port 8080 uses same-origin cookies. `CORS_ORIGINS` still includes the local development origins.
 
 Stop Compose with `docker compose down`. Do not add `-v`, and do not remove `smartstaff-postgres` or `smartstaff_pgdata`.
 
 ## Configuration
 
-Copy `.env.example` to `.env` for Compose, or export the same variables. Leave `POSTGRES_PASSWORD` empty in the example. JWT signing is optional in Phase 1. Set `JWT_SIGNING_KEY` to at least 32 bytes only when you want the API to enable JWT bearer authentication.
+Copy `.env.example` to `.env` for Compose, or export the same variables. Leave `POSTGRES_PASSWORD` and `JWT_SIGNING_KEY` empty in the example. Export a real signing key before `docker compose up`. The API refuses to start without one.
 
 ## Troubleshooting
 
