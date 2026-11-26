@@ -1,7 +1,8 @@
 import { Alert, Button, MenuItem, Stack, TextField, Typography } from '@mui/material'
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { assignRecruiter, changeRequisitionStatus, getRequisition, type Requisition } from '../api/staffing'
+import { applyToJob } from '../api/recruitment'
 import { apiErrorMessage } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 
@@ -9,6 +10,7 @@ const statuses = ['Draft', 'Open', 'Published', 'OnHold', 'Filled', 'Closed', 'C
 
 export default function RequisitionDetailPage() {
   const { id = '' } = useParams()
+  const navigate = useNavigate()
   const { user } = useAuth()
   const [item, setItem] = useState<Requisition | null>(null)
   const [status, setStatus] = useState('Draft')
@@ -16,6 +18,7 @@ export default function RequisitionDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const isAdmin = user?.roles.includes('Administrator') ?? false
+  const isClinician = user?.roles.includes('Clinician') && !isAdmin
   const canManage = !!user && user.roles.some((role) => ['Administrator', 'FacilityManager', 'HospitalAdministrator', 'Hospital Administrator', 'Recruiter', 'StaffingCoordinator', 'Staffing Coordinator'].includes(role))
 
   useEffect(() => {
@@ -50,6 +53,15 @@ export default function RequisitionDetailPage() {
     }
   }
 
+  async function apply() {
+    try {
+      const application = await applyToJob(id)
+      navigate(`/applications/${application.id}`)
+    } catch (caught) {
+      setError(apiErrorMessage(caught, 'The application could not be submitted.'))
+    }
+  }
+
   if (!item && !error) return <Typography>Loading requisition…</Typography>
   if (!item) return <Alert severity="error">{error}</Alert>
 
@@ -63,6 +75,9 @@ export default function RequisitionDetailPage() {
       <Typography>Specialty {item.specialty} · {item.shiftType} · {item.employmentType}</Typography>
       <Typography>Experience {item.requiredExperience} years · {item.requiredCertifications || 'No certifications listed'}</Typography>
       <Typography>{item.openPositions} open positions · ${item.payRateMin}–${item.payRateMax} · {item.status}</Typography>
+      {isClinician && item.status === 'Published' && (
+        <Button variant="contained" onClick={apply} sx={{ alignSelf: 'flex-start' }}>Apply</Button>
+      )}
       {canManage && (
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
           <TextField label="Status" select value={status} onChange={(event) => setStatus(event.target.value)} sx={{ minWidth: 200 }}>

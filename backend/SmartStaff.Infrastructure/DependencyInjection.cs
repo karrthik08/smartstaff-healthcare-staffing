@@ -8,6 +8,8 @@ using SmartStaff.Application.Staffing;
 using SmartStaff.Infrastructure.Health;
 using SmartStaff.Infrastructure.Identity;
 using SmartStaff.Infrastructure.Persistence;
+using SmartStaff.Application.Recruitment;
+using SmartStaff.Infrastructure.Recruitment;
 using SmartStaff.Infrastructure.Staffing;
 
 namespace SmartStaff.Infrastructure;
@@ -52,6 +54,9 @@ public static class DependencyInjection
         services.AddScoped<IUserAdminService, AuthService>();
         services.AddScoped<IFacilityService, FacilityService>();
         services.AddScoped<IRequisitionService, RequisitionService>();
+        services.AddScoped<IClinicianService, ClinicianService>();
+        services.AddScoped<IApplicationService, ApplicationService>();
+        services.AddScoped<IPlacementService, PlacementService>();
         if (string.Equals(configuration["PASSWORD_RESET_DEV_SINK"], "true", StringComparison.OrdinalIgnoreCase))
         {
             services.AddScoped<IPasswordResetNotifier, DevelopmentPasswordResetNotifier>();

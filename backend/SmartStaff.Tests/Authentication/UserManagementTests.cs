@@ -113,7 +113,7 @@ public sealed class UserManagementTests
 
         var adminSession = await LoginAsync(admin.Email!, Password);
         var clinicianSession = await LoginAsync(clinicianEmail, Password);
-        var search = await adminSession.SendAsync(HttpMethod.Get, $"/api/admin/users?search={Uri.EscapeDataString("Searchable")}&page=1&pageSize=5", bearer: true);
+        var search = await adminSession.SendAsync(HttpMethod.Get, $"/api/admin/users?search={Uri.EscapeDataString(clinicianEmail)}&page=1&pageSize=5", bearer: true);
         Assert.That(search.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var page = await search.Content.ReadFromJsonAsync<JsonElement>();
         Assert.That(page.GetProperty("total").GetInt32(), Is.GreaterThanOrEqualTo(1));

@@ -2,9 +2,11 @@ import { Alert, CircularProgress, Stack, Typography } from '@mui/material'
 import { useEffect, useState } from 'react'
 import { getDashboard, type DashboardResponse } from '../api/auth'
 import { apiErrorMessage } from '../api/client'
+import { recruitmentSummary, type RecruitmentSummary } from '../api/recruitment'
 
 export default function RoleDashboardPage({ workspace }: { workspace: string }) {
   const [data, setData] = useState<DashboardResponse | null>(null)
+  const [summary, setSummary] = useState<RecruitmentSummary | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -16,6 +18,9 @@ export default function RoleDashboardPage({ workspace }: { workspace: string }) 
       .catch((caught) => {
         if (active) setError(apiErrorMessage(caught, 'This workspace is not available.'))
       })
+    recruitmentSummary().then((response) => {
+      if (active) setSummary(response)
+    }).catch(() => undefined)
     return () => {
       active = false
     }
@@ -30,6 +35,12 @@ export default function RoleDashboardPage({ workspace }: { workspace: string }) 
       <Typography variant="body2" color="text.secondary">
         Reported {new Date(data.generatedAtUtc).toLocaleString()}
       </Typography>
+      {summary && (
+        <Typography>
+          {summary.applications} applications · {summary.activePlacements} active placements · {summary.openRequisitions} published jobs
+          {summary.pipeline.length > 0 ? ` · ${summary.pipeline.map((item) => `${item.status} ${item.count}`).join(', ')}` : ''}
+        </Typography>
+      )}
     </Stack>
   )
 }
