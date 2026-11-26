@@ -30,7 +30,7 @@ public sealed class NotificationHostedService : BackgroundService
             }
             catch (Exception exception) when (exception is not OperationCanceledException)
             {
-                _logger.LogError(exception, "Notification background processing failed");
+                _logger.LogError("Notification background processing failed. Cause {ExceptionType}", exception.GetType().Name);
             }
 
             var seconds = int.TryParse(_configuration["NOTIFICATION_POLL_SECONDS"], out var configured) && configured > 0 ? configured : 2;

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -30,6 +31,9 @@ public static class DependencyInjection
     {
         var database = DatabaseConfigurationReader.Read(configuration);
 
+        services.AddDataProtection()
+            .SetApplicationName("SmartStaff")
+            .PersistKeysToDbContext<ApplicationDbContext>();
         services.AddSingleton<NotificationOutboxInterceptor>();
         services.AddDbContext<ApplicationDbContext>((provider, options) =>
             options.UseNpgsql(NpgsqlConnectionStringFactory.Create(database))

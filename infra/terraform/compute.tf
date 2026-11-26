@@ -50,9 +50,9 @@ resource "aws_ecs_task_definition" "api" {
 
   container_definitions = jsonencode([
     {
-      name      = "api"
-      image     = "${aws_ecr_repository.api.repository_url}:latest"
-      essential = true
+      name         = "api"
+      image        = "${aws_ecr_repository.api.repository_url}:latest"
+      essential    = true
       portMappings = [{ containerPort = 8080, protocol = "tcp" }]
       environment = [
         { name = "ASPNETCORE_ENVIRONMENT", value = "Production" },
@@ -64,10 +64,13 @@ resource "aws_ecs_task_definition" "api" {
         { name = "POSTGRES_DB", value = "smartstaff" },
         { name = "POSTGRES_USER", value = "smartstaff" },
         { name = "JWT_ISSUER", value = "SmartStaff" },
-        { name = "JWT_AUDIENCE", value = "SmartStaff" }
+        { name = "JWT_AUDIENCE", value = "SmartStaff" },
+        { name = "COOKIE_SECURE", value = "true" },
+        { name = "TRUSTED_PROXY_CIDRS", value = var.vpc_cidr },
+        { name = "CORS_ORIGINS", value = var.cors_origins }
       ]
       secrets = [
-        { name = "POSTGRES_PASSWORD", valueFrom = "${aws_secretsmanager_secret.database.arn}:password::" },
+        { name = "POSTGRES_PASSWORD", valueFrom = "${one(aws_db_instance.main.master_user_secret).secret_arn}:password::" },
         { name = "JWT_SIGNING_KEY", valueFrom = aws_secretsmanager_secret.jwt.arn }
       ]
       logConfiguration = {

@@ -31,7 +31,7 @@ No database password, JWT signing key, or administrator password is committed. `
 
 ## Known authentication limitation
 
-Logout revokes the refresh-token family. It does not revoke an access token that has already been issued. That access token remains usable until its normal expiry, which is 15 minutes unless `JWT_ACCESS_TOKEN_MINUTES` changes it. Logout does not immediately revoke all access tokens.
+Logout revokes the refresh-token family and rotates the user's ASP.NET Core Identity security stamp. Access tokens carry that stamp. Every API instance reads the current stamp from PostgreSQL, so a previously issued access token is rejected on the next request after logout, password change, role change, or deactivation. This does not depend on a single server's memory. The access-token lifetime remains 15 minutes unless `JWT_ACCESS_TOKEN_MINUTES` changes it, but logout no longer waits for that expiry.
 
 ## Checklist before a real deployment
 

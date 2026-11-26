@@ -1,7 +1,9 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using SmartStaff.Infrastructure.Persistence;
 
 namespace SmartStaff.API.Authentication;
 
@@ -46,6 +48,30 @@ public static class JwtAuthenticationExtensions
                     ClockSkew = TimeSpan.FromMinutes(1),
                     RoleClaimType = "role",
                     NameClaimType = JwtRegisteredClaimNames.Email
+                };
+                options.Events = new JwtBearerEvents
+                {
+                    OnTokenValidated = async context =>
+                    {
+                        var principal = context.Principal;
+                        var userId = principal?.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+                        var stamp = principal?.FindFirst(JwtAccessTokenFactory.SecurityStampClaim)?.Value;
+                        if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(stamp))
+                        {
+                            context.Fail("The access token is no longer valid.");
+                            return;
+                        }
+
+                        var database = context.HttpContext.RequestServices.GetRequiredService<ApplicationDbContext>();
+                        var current = await database.Users.AsNoTracking()
+                            .Where(user => user.Id == userId)
+                            .Select(user => new { user.SecurityStamp, user.IsActive })
+                            .SingleOrDefaultAsync(context.HttpContext.RequestAborted);
+                        if (current is null || !current.IsActive || !string.Equals(current.SecurityStamp, stamp, StringComparison.Ordinal))
+                        {
+                            context.Fail("The access token is no longer valid.");
+                        }
+                    }
                 };
             });
 

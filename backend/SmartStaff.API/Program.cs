@@ -26,18 +26,38 @@ builder.Services.AddSingleton<JwtAccessTokenFactory>();
 builder.Services.AddSmartStaffJwt(builder.Configuration);
 
 builder.Services.AddAuthorization(options => options.AddSmartStaffPolicies());
+var trustedProxies = builder.Configuration["TRUSTED_PROXY_CIDRS"];
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    // The load balancer is the only allowed caller in production. Security groups enforce that boundary.
+    if (string.IsNullOrWhiteSpace(trustedProxies))
+    {
+        return;
+    }
+
     options.KnownIPNetworks.Clear();
     options.KnownProxies.Clear();
+    foreach (var entry in trustedProxies.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+    {
+        if (!System.Net.IPNetwork.TryParse(entry, out var network))
+        {
+            throw new InvalidOperationException("TRUSTED_PROXY_CIDRS contains an invalid network.");
+        }
+
+        options.KnownIPNetworks.Add(network);
+    }
 });
 
 var permitLimit = 20;
 if (int.TryParse(builder.Configuration["AUTH_RATE_LIMIT_PER_MINUTE"], out var configuredLimit) && configuredLimit > 0)
 {
     permitLimit = configuredLimit;
+}
+
+var apiPermitLimit = 2000;
+if (int.TryParse(builder.Configuration["API_RATE_LIMIT_PER_MINUTE"], out var configuredApiLimit) && configuredApiLimit > 0)
+{
+    apiPermitLimit = configuredApiLimit;
 }
 
 builder.Services.AddRateLimiter(options =>
@@ -49,6 +69,15 @@ builder.Services.AddRateLimiter(options =>
             _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = permitLimit,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = apiPermitLimit,
                 Window = TimeSpan.FromMinutes(1),
                 QueueLimit = 0
             }));
@@ -69,6 +98,10 @@ if (builder.Environment.IsProduction() && string.IsNullOrWhiteSpace(configuredOr
 
 var allowedOrigins = (configuredOrigins ?? "http://localhost:5173,http://127.0.0.1:5173,http://localhost:8080,http://127.0.0.1:8080")
     .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+if (allowedOrigins.Any(origin => origin == "*"))
+{
+    throw new InvalidOperationException("CORS_ORIGINS cannot contain a wildcard.");
+}
 
 builder.Services.AddCors(options =>
 {
@@ -89,7 +122,8 @@ if (builder.Environment.IsProduction())
     }
 
     var signingKey = builder.Configuration[JwtAuthenticationExtensions.SigningKeyVariable] ?? "";
-    if (signingKey.Contains("not-for-production", StringComparison.OrdinalIgnoreCase))
+    if (signingKey.Contains("not-for-production", StringComparison.OrdinalIgnoreCase)
+        || System.Text.Encoding.UTF8.GetByteCount(signingKey) < 32)
     {
         throw new InvalidOperationException("The development JWT signing key cannot be used in production.");
     }

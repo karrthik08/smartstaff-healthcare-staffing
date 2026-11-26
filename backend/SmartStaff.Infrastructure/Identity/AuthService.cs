@@ -183,6 +183,12 @@ public sealed class AuthService : IAuthService, IProfileService, IUserAdminServi
             {
                 existing.RevokedAt = DateTimeOffset.UtcNow;
                 await _dbContext.SaveChangesAsync(cancellationToken);
+                var user = await _users.FindByIdAsync(existing.UserId);
+                if (user is not null)
+                {
+                    await _users.UpdateSecurityStampAsync(user);
+                }
+
                 await _audit.WriteAsync("Logout", existing.UserId, true, null, ipAddress, cancellationToken);
                 return OperationResult<bool>.Ok(true);
             }
@@ -429,6 +435,7 @@ public sealed class AuthService : IAuthService, IProfileService, IUserAdminServi
             return OperationResult<UserSummaryDto>.Fail(400, "Roles rejected", "The new roles could not be saved.");
         }
 
+        await _users.UpdateSecurityStampAsync(user);
         await _audit.WriteAsync(
             "RolesChanged",
             actorUserId,
@@ -471,6 +478,7 @@ public sealed class AuthService : IAuthService, IProfileService, IUserAdminServi
         if (!active)
         {
             await RevokeFamilyForUserAsync(user.Id, cancellationToken);
+            await _users.UpdateSecurityStampAsync(user);
         }
 
         await _audit.WriteAsync(active ? "AccountActivated" : "AccountDeactivated", actorUserId, true, $"Target {user.Id}", ipAddress, cancellationToken);
@@ -504,9 +512,14 @@ public sealed class AuthService : IAuthService, IProfileService, IUserAdminServi
             CreatedAt = now,
             ExpiresAt = now.Add(RefreshLifetime)
         };
+        if (string.IsNullOrEmpty(user.SecurityStamp))
+        {
+            await _users.UpdateSecurityStampAsync(user);
+        }
+
         _dbContext.RefreshTokens.Add(entity);
         await _dbContext.SaveChangesAsync(cancellationToken);
-        return new AuthSession(await ToDtoAsync(user), secret, entity.ExpiresAt);
+        return new AuthSession(await ToDtoAsync(user), secret, entity.ExpiresAt, user.SecurityStamp ?? "");
     }
 
     private async Task RevokeFamilyAsync(string familyId, CancellationToken cancellationToken)

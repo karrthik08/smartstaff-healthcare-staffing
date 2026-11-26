@@ -16,9 +16,16 @@ Do not commit real values. Use the shell, a gitignored `.env`, or AWS Secrets Ma
 | `JWT_ISSUER` | No | Default `SmartStaff` |
 | `JWT_AUDIENCE` | No | Default `SmartStaff` |
 | `JWT_ACCESS_TOKEN_MINUTES` | No | Default 15 |
-| `CORS_ORIGINS` | Yes in production | Comma-separated browser origins. Credentials are allowed, so `*` is not used |
+| `CORS_ORIGINS` | Yes in production | Comma-separated browser origins. A wildcard is rejected |
 | `HTTPS_REDIRECT` | No | Set `true` only when this process itself terminates TLS |
-| `AUTH_RATE_LIMIT_PER_MINUTE` | No | Default 20 for the auth policy |
+| `COOKIE_SECURE` | No | `true` or `false`. When unset, cookies are Secure only on HTTPS requests. The local production Compose file sets `false` because it is HTTP. AWS sets `true` |
+| `TRUSTED_PROXY_CIDRS` | No | Comma-separated CIDRs allowed to send `X-Forwarded-For` and `X-Forwarded-Proto`. When unset, only loopback proxies are trusted |
+| `AUTH_RATE_LIMIT_PER_MINUTE` | No | Default 20 for sign-in, registration, and password endpoints |
+| `API_RATE_LIMIT_PER_MINUTE` | No | Default 2000 for all requests from one address |
+| `POSTGRES_MAX_POOL_SIZE` | No | Default 20 |
+| `POSTGRES_MIN_POOL_SIZE` | No | Default 0 |
+| `POSTGRES_CONNECT_TIMEOUT` | No | Seconds. Default 15 |
+| `POSTGRES_CONNECTION_IDLE_SECONDS` | No | Default 60 |
 | `NOTIFICATION_POLL_SECONDS` | No | Default 2. The production Compose file uses 15 |
 | `PASSWORD_RESET_DEV_SINK` | No | `true` only on a development machine. Production startup fails if it is true |
 | `BOOTSTRAP_ADMIN_EMAIL` | No | Used only when no administrator exists |

@@ -3,6 +3,7 @@ project_name          = "smartstaff"
 environment           = "demo"
 acm_certificate_arn   = "arn:aws:acm:us-east-1:000000000000:certificate/example"
 github_repository     = "owner/SmartStaffproject"
+cors_origins          = "https://app.example.com"
 db_engine_version     = "16"
 db_instance_class     = "db.t4g.micro"
 db_multi_az           = false

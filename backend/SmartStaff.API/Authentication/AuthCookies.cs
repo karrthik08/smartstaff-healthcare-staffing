@@ -41,7 +41,7 @@ public static class AuthCookies
     private static CookieOptions RefreshOptions(HttpRequest request, DateTimeOffset expires) => new()
     {
         HttpOnly = true,
-        Secure = request.IsHttps,
+        Secure = UseSecureCookies(request),
         SameSite = SameSiteMode.Strict,
         Path = "/api/auth",
         Expires = expires
@@ -50,10 +50,26 @@ public static class AuthCookies
     private static CookieOptions CsrfOptions(HttpRequest request) => new()
     {
         HttpOnly = false,
-        Secure = request.IsHttps,
+        Secure = UseSecureCookies(request),
         SameSite = SameSiteMode.Strict,
         Path = "/"
     };
+
+    private static bool UseSecureCookies(HttpRequest request)
+    {
+        var configured = request.HttpContext.RequestServices.GetService<IConfiguration>()?["COOKIE_SECURE"];
+        if (string.Equals(configured, "true", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (string.Equals(configured, "false", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return request.IsHttps;
+    }
 }
 
 public static class ApiResults

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -18,7 +19,7 @@ public sealed class ApplicationUser : IdentityUser
     public bool IsActive { get; set; } = true;
 }
 
-public sealed class ApplicationDbContext : IdentityDbContext<ApplicationUser>
+public sealed class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IDataProtectionKeyContext
 {
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
         : base(options)
@@ -80,6 +81,8 @@ public sealed class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<NotificationOutbox> NotificationOutbox => Set<NotificationOutbox>();
 
     public DbSet<EmailDispatch> EmailDispatches => Set<EmailDispatch>();
+
+    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

@@ -81,6 +81,11 @@ variable "cloudfront_price_class" {
   default = "PriceClass_100"
 }
 
+variable "cors_origins" {
+  description = "Comma-separated browser origins allowed to call the API. Required before apply."
+  type        = string
+}
+
 variable "github_repository" {
   description = "GitHub repository allowed to assume the deployment role, in owner/name form."
   type        = string

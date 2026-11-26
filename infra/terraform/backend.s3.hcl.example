@@ -1,0 +1,16 @@
+# Copy to backend.s3.hcl and pass it to terraform init. Do not commit the copy.
+# This file does not enable a backend by itself, and nothing here is provisioned.
+#
+#   terraform init -backend-config=backend.s3.hcl
+#
+# Create the bucket, lock table, and KMS key manually or with a separate bootstrap
+# configuration before the first init. The bucket and table must use encryption
+# and block public access. Restrict the state role to the operators who may plan
+# and apply. Do not put database passwords or JWT keys in this file.
+
+bucket         = "replace-with-state-bucket"
+key            = "smartstaff/demo/terraform.tfstate"
+region         = "us-east-1"
+encrypt        = true
+kms_key_id     = "replace-with-kms-key-arn"
+dynamodb_table = "replace-with-lock-table"

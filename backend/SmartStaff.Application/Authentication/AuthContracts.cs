@@ -32,7 +32,7 @@ public sealed record ChangePasswordRequest(string CurrentPassword, string NewPas
 
 public sealed record UserListQuery(string? Search, string? Role, bool? Active, int Page, int PageSize);
 
-public sealed record AuthSession(AuthenticatedUserDto User, string RefreshToken, DateTimeOffset RefreshTokenExpiresAt);
+public sealed record AuthSession(AuthenticatedUserDto User, string RefreshToken, DateTimeOffset RefreshTokenExpiresAt, string SecurityStamp);
 
 public sealed record DashboardDto(string Workspace, string Title, string Message, DateTimeOffset GeneratedAtUtc);
 

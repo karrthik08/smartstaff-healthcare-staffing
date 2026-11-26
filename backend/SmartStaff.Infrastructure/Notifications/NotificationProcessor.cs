@@ -43,9 +43,25 @@ public sealed class NotificationProcessor : INotificationProcessor
             {
                 message.AttemptCount++;
                 message.LastError = exception.GetType().Name;
-                var delaySeconds = Math.Pow(2, Math.Min(message.AttemptCount, 8));
-                message.AvailableAt = DateTimeOffset.UtcNow.AddSeconds(delaySeconds);
-                _logger.LogWarning(exception, "Notification delivery retry scheduled for {IdempotencyKey} after attempt {AttemptCount}", message.IdempotencyKey, message.AttemptCount);
+                if (message.AttemptCount >= 8)
+                {
+                    message.ProcessedAt = DateTimeOffset.UtcNow;
+                    _logger.LogWarning(
+                        "Notification delivery stopped for {IdempotencyKey} after {AttemptCount} attempts. Cause {ExceptionType}",
+                        message.IdempotencyKey,
+                        message.AttemptCount,
+                        exception.GetType().Name);
+                }
+                else
+                {
+                    var delaySeconds = Math.Pow(2, Math.Min(message.AttemptCount, 8));
+                    message.AvailableAt = DateTimeOffset.UtcNow.AddSeconds(delaySeconds);
+                    _logger.LogWarning(
+                        "Notification delivery retry scheduled for {IdempotencyKey} after attempt {AttemptCount}. Cause {ExceptionType}",
+                        message.IdempotencyKey,
+                        message.AttemptCount,
+                        exception.GetType().Name);
+                }
             }
         }
 

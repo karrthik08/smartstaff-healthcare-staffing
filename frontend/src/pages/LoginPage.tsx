@@ -35,11 +35,11 @@ export default function LoginPage() {
 
   return (
     <AuthCard title="Sign in">
-      {notice && <Alert severity="info">{notice}</Alert>}
-      {error && <Alert severity="error">{error}</Alert>}
+      {notice && <Alert severity="info" role="status">{notice}</Alert>}
+      {error && <Alert id="sign-in-error" severity="error" role="alert">{error}</Alert>}
       <Stack component="form" spacing={2} onSubmit={onSubmit}>
-        <TextField label="Email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="username" required />
-        <TextField label="Password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required />
+        <TextField label="Email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="username" required error={Boolean(error)} slotProps={{ htmlInput: { 'aria-describedby': error ? 'sign-in-error' : undefined } }} />
+        <TextField label="Password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required error={Boolean(error)} slotProps={{ htmlInput: { 'aria-describedby': error ? 'sign-in-error' : undefined } }} />
         <Button type="submit" variant="contained" disabled={loading}>{loading ? 'Signing in…' : 'Sign in'}</Button>
       </Stack>
       <MuiLink component={RouterLink} to="/forgot-password">Forgot password</MuiLink>

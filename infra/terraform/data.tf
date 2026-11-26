@@ -1,35 +1,6 @@
-resource "random_password" "database" {
-  length  = 32
-  special = false
-}
-
-resource "random_password" "jwt" {
-  length  = 48
-  special = false
-}
-
-resource "aws_secretsmanager_secret" "database" {
-  name = "${local.name}/database"
-}
-
-resource "aws_secretsmanager_secret_version" "database" {
-  secret_id = aws_secretsmanager_secret.database.id
-  secret_string = jsonencode({
-    username = "smartstaff"
-    password = random_password.database.result
-    dbname   = "smartstaff"
-    host     = aws_db_instance.main.address
-    port     = 5432
-  })
-}
-
 resource "aws_secretsmanager_secret" "jwt" {
-  name = "${local.name}/jwt"
-}
-
-resource "aws_secretsmanager_secret_version" "jwt" {
-  secret_id     = aws_secretsmanager_secret.jwt.id
-  secret_string = random_password.jwt.result
+  name        = "${local.name}/jwt"
+  description = "JWT signing key. Put the value with put-secret-value after apply. Terraform does not generate or store it."
 }
 
 resource "aws_db_subnet_group" "main" {
@@ -38,25 +9,25 @@ resource "aws_db_subnet_group" "main" {
 }
 
 resource "aws_db_instance" "main" {
-  identifier                = local.name
-  engine                    = "postgres"
-  engine_version            = var.db_engine_version
-  instance_class            = var.db_instance_class
-  allocated_storage         = var.db_allocated_storage
-  storage_type              = "gp3"
-  storage_encrypted         = true
-  db_name                   = "smartstaff"
-  username                  = "smartstaff"
-  password                  = random_password.database.result
-  db_subnet_group_name      = aws_db_subnet_group.main.name
-  vpc_security_group_ids    = [aws_security_group.database.id]
-  publicly_accessible       = false
-  multi_az                  = var.db_multi_az
-  backup_retention_period   = 7
-  deletion_protection       = var.db_deletion_protection
-  skip_final_snapshot       = false
-  final_snapshot_identifier = "${local.name}-final"
-  copy_tags_to_snapshot     = true
+  identifier                  = local.name
+  engine                      = "postgres"
+  engine_version              = var.db_engine_version
+  instance_class              = var.db_instance_class
+  allocated_storage           = var.db_allocated_storage
+  storage_type                = "gp3"
+  storage_encrypted           = true
+  db_name                     = "smartstaff"
+  username                    = "smartstaff"
+  manage_master_user_password = true
+  db_subnet_group_name        = aws_db_subnet_group.main.name
+  vpc_security_group_ids      = [aws_security_group.database.id]
+  publicly_accessible         = false
+  multi_az                    = var.db_multi_az
+  backup_retention_period     = 7
+  deletion_protection         = var.db_deletion_protection
+  skip_final_snapshot         = false
+  final_snapshot_identifier   = "${local.name}-final"
+  copy_tags_to_snapshot       = true
 }
 
 resource "aws_s3_bucket" "frontend" {

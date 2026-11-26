@@ -169,7 +169,7 @@ public sealed class AuthController : ControllerBase
     {
         var csrf = TokenHasher.CreateSecret();
         AuthCookies.Write(Response, Request, session.RefreshToken, session.RefreshTokenExpiresAt, csrf);
-        var access = _tokens.Create(session.User);
+        var access = _tokens.Create(session.User, session.SecurityStamp);
         return Ok(new
         {
             accessToken = access.Token,

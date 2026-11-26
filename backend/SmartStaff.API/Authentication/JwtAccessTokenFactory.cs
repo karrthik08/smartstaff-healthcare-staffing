@@ -17,8 +17,15 @@ public sealed class JwtAccessTokenFactory
         _configuration = configuration;
     }
 
-    public AccessToken Create(AuthenticatedUserDto user)
+    public const string SecurityStampClaim = "sst";
+
+    public AccessToken Create(AuthenticatedUserDto user, string securityStamp)
     {
+        if (string.IsNullOrEmpty(securityStamp))
+        {
+            throw new InvalidOperationException("An access token requires a security stamp.");
+        }
+
         var signingKey = _configuration[JwtAuthenticationExtensions.SigningKeyVariable]
             ?? throw new InvalidOperationException("JWT_SIGNING_KEY environment variable is required.");
         var minutes = 15;
@@ -34,7 +41,8 @@ public sealed class JwtAccessTokenFactory
             new(JwtRegisteredClaimNames.Email, user.Email),
             new(JwtRegisteredClaimNames.GivenName, user.FirstName),
             new(JwtRegisteredClaimNames.FamilyName, user.LastName),
-            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N"))
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N")),
+            new(SecurityStampClaim, securityStamp)
         };
         claims.AddRange(user.Roles.Select(role => new Claim("role", role)));
 

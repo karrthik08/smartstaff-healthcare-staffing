@@ -229,6 +229,9 @@ public sealed class AuthenticationTests
         var logout = await _session.SendAsync(HttpMethod.Post, "/api/auth/logout", csrf: true);
         Assert.That(logout.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
 
+        var revokedAccess = await _session.SendAsync(HttpMethod.Get, "/api/auth/me", bearer: true);
+        Assert.That(revokedAccess.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+
         _session.SetCookie(AuthCookies.RefreshName, refreshCookie);
         _session.SetCookie(AuthCookies.CsrfName, csrf);
         var refresh = await _session.SendAsync(HttpMethod.Post, "/api/auth/refresh", csrf: true);
