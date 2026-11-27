@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 // Seeds fictional demo accounts on an isolated API. Refuses the development API on port 5080.
-// Passwords come from the environment and are never printed.
+// Passwords come from the environment and are written only to .local/demo-credentials.txt.
+import { chmodSync, mkdirSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const base = process.env.DEMO_BASE_URL ?? ''
 const adminEmail = process.env.DEMO_ADMIN_EMAIL ?? ''
@@ -254,6 +257,16 @@ if ((notifications.items ?? []).length === 0) {
   throw new Error(`Clinician notifications were empty after waiting. Last response: ${JSON.stringify(notifications)}`)
 }
 
+const dashboards = {
+  administrator: (await call('GET', '/api/dashboards/administrator', undefined, admin)).status,
+  facilityManager: (await call('GET', '/api/dashboards/facility', undefined, manager)).status,
+  recruiter: (await call('GET', '/api/dashboards/recruiter', undefined, recruiter)).status,
+  clinician: (await call('GET', '/api/dashboards/clinician', undefined, clinician)).status,
+}
+for (const [role, status] of Object.entries(dashboards)) {
+  if (status !== 200) throw new Error(`${role} dashboard returned ${status}`)
+}
+
 const analytics = assert(await call('GET', `/api/analytics/overview?facilityId=${facility.id}`, undefined, admin), 200, 'analytics')
 if (Number(analytics.placements) < 1 || Number(analytics.scheduledShifts) < 1) {
   throw new Error(`Analytics did not reflect the demo records: ${JSON.stringify(analytics)}`)
@@ -289,4 +302,32 @@ const summary = {
 summary.managerEmail = people.manager.email
 summary.recruiterEmail = people.recruiter.email
 summary.clinicianEmail = people.clinician.email
+summary.dashboards = dashboards
+const credentialDir = join(dirname(fileURLToPath(import.meta.url)), '..', '.local')
+mkdirSync(credentialDir, { recursive: true })
+const credentialFile = join(credentialDir, 'demo-credentials.txt')
+writeFileSync(credentialFile, [
+  'SmartStaff local demonstration',
+  'Site: http://127.0.0.1:8080',
+  'This file is gitignored. Do not commit it or paste it into a chat.',
+  '',
+  'Administrator',
+  `Email: ${adminEmail}`,
+  `Password: ${adminPassword}`,
+  '',
+  'Facility manager',
+  `Email: ${people.manager.email}`,
+  `Password: ${password}`,
+  '',
+  'Recruiter',
+  `Email: ${people.recruiter.email}`,
+  `Password: ${password}`,
+  '',
+  'Clinician',
+  `Email: ${people.clinician.email}`,
+  `Password: ${password}`,
+  '',
+].join('\n'), { mode: 0o600 })
+chmodSync(credentialFile, 0o600)
+console.error('Demo credentials saved to .local/demo-credentials.txt')
 console.log(JSON.stringify(summary))

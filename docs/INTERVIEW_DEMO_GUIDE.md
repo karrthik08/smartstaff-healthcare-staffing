@@ -2,23 +2,23 @@
 
 Use the isolated Docker stack. Do not use the development site on port 5173, and do not change the development database on port 5433.
 
-The site is http://127.0.0.1:8080. The API is http://127.0.0.1:5081. Passwords stay in the shell. They are not stored in this repository.
+The site is http://127.0.0.1:8080. The API is http://127.0.0.1:5081. Passwords stay in the gitignored `.env` file in the project root. They are not stored in Git.
 
 ## Startup
 
-From the repository root, if the stack is already running, do not recreate it:
+Compose reads `.env` from the project directory. A new terminal does not need the variables exported. Docker Desktop must be running. The script refuses to start when `.env` is missing, because a new database password will not unlock the existing volume.
+
+```bash
+./scripts/start-demo.sh
+```
+
+That validates the Compose file, starts the containers, and prints their status. It does not remove volumes.
+
+If the stack is already running:
 
 ```bash
 docker compose -f docker-compose.prod.yml ps
 ```
-
-If it is not running, start it with the same untracked env file you used before. Do not invent a new database password for an existing volume.
-
-```bash
-docker compose -f docker-compose.prod.yml --env-file /path/to/untracked.env up -d
-```
-
-The env file must supply `POSTGRES_PASSWORD` and `JWT_SIGNING_KEY`. Add bootstrap administrator values only when the isolated database does not already have an administrator.
 
 ## Health checks
 
@@ -31,28 +31,38 @@ Expect the API to report a connected database and HTTP 200. Expect the site to r
 
 ## Demo login preparation
 
-Generate a demonstration password in the shell. It must be at least 12 characters and include upper and lower case, a number, and a symbol. Do not write it into a file in the repository.
+The existing administrator is kept. A seed run adds a new facility manager, recruiter, and clinician. It does not reset older passwords and it does not delete rows.
 
 ```bash
+set -a
+. ./.env
+set +a
 export DEMO_BASE_URL=http://127.0.0.1:5081
-export DEMO_ADMIN_EMAIL="the isolated bootstrap email"
-export DEMO_ADMIN_PASSWORD="the isolated bootstrap password"
+export DEMO_ADMIN_EMAIL="$BOOTSTRAP_ADMIN_EMAIL"
+export DEMO_ADMIN_PASSWORD="$BOOTSTRAP_ADMIN_PASSWORD"
 export DEMO_PASSWORD="$(openssl rand -base64 18)Aa1!"
 node scripts/seed-demo.mjs
 ```
 
-The script refuses port 5080. It prints fictional email addresses and record ids. It does not print passwords. Each run adds a new facility and new accounts. It does not delete earlier rows.
+The script refuses port 5080. Its console output lists record ids and the new email addresses. It does not print passwords. The four sign-in values are written to `.local/demo-credentials.txt` with mode `600`. That directory is gitignored.
 
-Sign in at http://127.0.0.1:8080/login.
+Read them only on this machine:
 
-| Role | How to identify the account |
-|---|---|
-| Administrator | `DEMO_ADMIN_EMAIL` |
-| Facility manager | `demo-manager-<timestamp>@smartstaff.invalid` |
-| Recruiter | `demo-recruiter-<timestamp>@smartstaff.invalid` |
-| Clinician | `demo-clinician-<timestamp>@smartstaff.invalid` |
+```bash
+chmod 600 .local/demo-credentials.txt
+less .local/demo-credentials.txt
+```
 
-The manager, recruiter, and clinician share `DEMO_PASSWORD` for that run only. The administrator uses the existing bootstrap password.
+Sign in at http://127.0.0.1:8080/login. Sign out before switching roles.
+
+| Role | Where to sign in | What you should see |
+|---|---|---|
+| Administrator | Existing bootstrap account | Administrator workspace, user list, facilities, and requisitions |
+| Facility manager | New `demo-manager-...@smartstaff.invalid` account | Facility workspace, schedule, approved timesheet, and facility analytics |
+| Recruiter | New `demo-recruiter-...@smartstaff.invalid` account | Recruiter workspace and the application pipeline |
+| Clinician | New `demo-clinician-...@smartstaff.invalid` account | Clinician workspace, confirmed shift, attendance, and notifications |
+
+A clinician request to create a facility returns 403. After sign-out, the previous access token is rejected.
 
 ## Navigation sequence
 
@@ -75,10 +85,10 @@ Use Sign out between roles. Do not keep two sessions in one browser profile. Aft
 
 | What you see | What to do |
 |---|---|
-| Site does not load | Run `docker compose -f docker-compose.prod.yml ps` and start the stack with the existing env file |
+| Site does not load | Run `./scripts/start-demo.sh`. Docker Desktop must be running, and `.env` must already contain the existing database password |
 | API health is not 200 | Wait for PostgreSQL to be healthy, then read `docker logs smartstaff-prod-api-1` |
 | Seed script says port 5080 is refused | Point `DEMO_BASE_URL` at `http://127.0.0.1:5081` |
-| Sign-in fails for a demo user | Run the seed again. A new run uses new emails. Do not reuse a password from an earlier run |
+| Sign-in fails for a demo user | Open `.local/demo-credentials.txt` for the latest accounts. Do not reuse a password from an older seed |
 | Notifications are empty | Wait about 15 seconds and refresh. The worker polls the outbox |
 | You are about to type a command against port 5433 | Stop. That is the development database |
 
@@ -92,4 +102,4 @@ This stops the containers and keeps the volumes:
 docker compose -f docker-compose.prod.yml stop
 ```
 
-Start them again with `docker compose -f docker-compose.prod.yml --env-file /path/to/untracked.env up -d`.
+Start them again with `./scripts/start-demo.sh`. Do not replace `POSTGRES_PASSWORD` in `.env` while this volume exists.
